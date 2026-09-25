@@ -72,7 +72,7 @@ async def extract_url(req: ExtractRequest):
     
     info = extract_video_info(url)
     
-    if not info.get("success") and not info.get("qualities"):
+    if not info.get("success") and not info.get("qualities") and not info.get("entries"):
         raise HTTPException(status_code=400, detail=info.get("error", "Failed to extract video."))
 
     # Generate convenient streaming endpoints for each quality

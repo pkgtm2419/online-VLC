@@ -1,8 +1,8 @@
 """
-Universal Video Extractor
-Extracts direct playable stream URLs, formats, audio, and metadata from any video URL.
+Universal Video & Playlist Extractor
+Extracts direct playable stream URLs, formats, audio, and metadata from any video or playlist URL.
 Supports YouTube, Vimeo, Reddit, Twitter, TikTok, Facebook, Dailymotion,
-cloud storage (Google Drive, Dropbox), direct media links (.mp4, .webm, .m3u8), and generic web pages.
+cloud storage (Google Drive, Dropbox), direct media links (.mp4, .webm, .m3u8), and playlists.
 """
 
 import re
@@ -49,34 +49,30 @@ def is_direct_media_link(url: str) -> bool:
 def format_duration(seconds: Optional[float]) -> str:
     """Convert seconds to HH:MM:SS or MM:SS."""
     if not seconds:
-        return ""
+        return "--:--"
     secs = int(seconds)
     hours = secs // 3600
     minutes = (secs % 3600) // 60
     remaining_secs = secs % 60
     if hours > 0:
         return f"{hours}:{minutes:02d}:{remaining_secs:02d}"
-    return f"{minutes}:{remaining_secs:02d}"
+    return f"{minutes:02d}:{remaining_secs:02d}"
 
 
-def extract_video_info(url: str) -> Dict[str, Any]:
-    """
-    Extract video metadata and available stream formats from any video URL.
-    Returns clean dictionary with playable stream options.
-    """
-    cleaned_url = normalize_storage_url(url.strip())
-    
-    # Check if it's already a direct media file
+def extract_single_video_info(cleaned_url: str) -> Dict[str, Any]:
+    """Extract formats and streams for an individual video link."""
+    # Check direct media link
     if is_direct_media_link(cleaned_url):
-        filename = cleaned_url.split('/')[-1].split('?')[0] or "Direct Video"
+        filename = cleaned_url.split('/')[-1].split('?')[0] or "Direct Media"
         ext = filename.split('.')[-1].lower() if '.' in filename else "mp4"
         is_hls = ext == "m3u8"
         return {
             "success": True,
+            "is_playlist": False,
             "title": urllib.parse.unquote(filename),
             "uploader": "Direct Link",
             "duration": None,
-            "duration_str": "",
+            "duration_str": "--:--",
             "thumbnail": None,
             "webpage_url": cleaned_url,
             "is_direct": True,
@@ -94,7 +90,6 @@ def extract_video_info(url: str) -> Dict[str, Any]:
             "source": "Direct Link"
         }
 
-    # yt-dlp options
     ydl_opts = {
         'noplaylist': True,
         'quiet': True,
@@ -111,133 +106,201 @@ def extract_video_info(url: str) -> Dict[str, Any]:
         }
     }
 
-    try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(cleaned_url, download=False)
-            
-            if not info:
-                raise Exception("Could not extract media info from this link.")
-                
-            if 'entries' in info and info['entries']:
-                info = info['entries'][0]
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(cleaned_url, download=False)
+        if not info:
+            raise Exception("No video data retrieved.")
+        if 'entries' in info and info['entries']:
+            info = info['entries'][0]
 
-            title = info.get('title') or "Untitled Video"
-            uploader = info.get('uploader') or info.get('channel') or info.get('extractor_key') or ""
-            duration = info.get('duration')
-            thumbnail = info.get('thumbnail')
-            webpage_url = info.get('webpage_url') or cleaned_url
-            
-            raw_formats = info.get('formats', [])
-            
-            # Filter out restricted/CORS-blocked Google Video manifests
-            clean_formats = [
-                f for f in raw_formats 
-                if f.get('url') and 'manifest.googlevideo.com' not in f.get('url', '')
-            ]
+        title = info.get('title') or "Untitled Video"
+        uploader = info.get('uploader') or info.get('channel') or info.get('extractor_key') or ""
+        duration = info.get('duration')
+        thumbnail = info.get('thumbnail')
+        webpage_url = info.get('webpage_url') or cleaned_url
 
-            # Best audio track (prefer https audio)
-            audio_formats = [
-                f for f in clean_formats 
-                if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')
-            ]
-            audio_formats.sort(key=lambda x: (x.get('protocol') == 'https', x.get('abr') or 0), reverse=True)
-            best_audio_url = audio_formats[0]['url'] if audio_formats else None
+        raw_formats = info.get('formats', [])
+        clean_formats = [
+            f for f in raw_formats 
+            if f.get('url') and 'manifest.googlevideo.com' not in f.get('url', '')
+        ]
 
-            # Video qualities
-            quality_options = []
-            seen_heights = set()
+        audio_formats = [
+            f for f in clean_formats 
+            if f.get('acodec') != 'none' and f.get('vcodec') == 'none' and f.get('url')
+        ]
+        audio_formats.sort(key=lambda x: (x.get('protocol') == 'https', x.get('abr') or 0), reverse=True)
+        best_audio_url = audio_formats[0]['url'] if audio_formats else None
 
-            # 1. Progressive combined formats (both video + audio)
-            combined_formats = [
-                f for f in clean_formats 
-                if f.get('vcodec') != 'none' and f.get('acodec') != 'none' and f.get('url')
-            ]
-            combined_formats.sort(key=lambda x: (x.get('height') or 0), reverse=True)
+        quality_options = []
+        seen_heights = set()
 
-            for cf in combined_formats:
-                h = cf.get('height') or 0
-                label = f"{h}p" if h > 0 else "Auto"
-                if h not in seen_heights and h > 0:
-                    seen_heights.add(h)
-                    quality_options.append({
-                        "label": label,
-                        "height": h,
-                        "type": "direct",
-                        "video_url": cf['url'],
-                        "audio_url": None,
-                        "is_hls": '.m3u8' in cf['url'] and 'googlevideo' not in cf['url'],
-                        "ext": cf.get('ext', 'mp4')
-                    })
+        # 1. Progressive streams (both video + audio)
+        combined_formats = [
+            f for f in clean_formats 
+            if f.get('vcodec') != 'none' and f.get('acodec') != 'none' and f.get('url')
+        ]
+        combined_formats.sort(key=lambda x: (x.get('height') or 0), reverse=True)
 
-            # 2. Video-only formats paired with best audio track
-            video_formats = [
-                f for f in clean_formats 
-                if f.get('vcodec') != 'none' and f.get('height') and f.get('url')
-            ]
-            # Sort by height descending and prefer mp4 container
-            video_formats.sort(key=lambda x: (x.get('height') or 0, x.get('ext') == 'mp4'), reverse=True)
-
-            for vf in video_formats:
-                h = vf.get('height') or 0
-                if h >= 144 and h not in seen_heights:
-                    seen_heights.add(h)
-                    has_audio = vf.get('acodec') != 'none'
-                    stream_type = "direct" if has_audio else ("mux" if best_audio_url else "direct")
-                    is_hls = '.m3u8' in vf['url'] and 'googlevideo' not in vf['url']
-                    
-                    quality_options.append({
-                        "label": f"{h}p" + (" HD" if h in (720, 1080) else "") + (" 4K" if h >= 2160 else ""),
-                        "height": h,
-                        "type": stream_type,
-                        "video_url": vf['url'],
-                        "audio_url": None if has_audio else best_audio_url,
-                        "is_hls": is_hls,
-                        "ext": vf.get('ext', 'mp4')
-                    })
-
-            # Sort quality options descending by resolution height
-            quality_options.sort(key=lambda x: x.get('height', 0), reverse=True)
-
-            # Fallback if quality_options is empty
-            if not quality_options and info.get('url'):
-                direct_url = info['url']
+        for cf in combined_formats:
+            h = cf.get('height') or 0
+            label = f"{h}p" if h > 0 else "Auto"
+            if h not in seen_heights and h > 0:
+                seen_heights.add(h)
                 quality_options.append({
-                    "label": "Auto",
-                    "height": info.get('height') or 720,
+                    "label": label,
+                    "height": h,
                     "type": "direct",
-                    "video_url": direct_url,
+                    "video_url": cf['url'],
                     "audio_url": None,
-                    "is_hls": '.m3u8' in direct_url and 'googlevideo' not in direct_url,
-                    "ext": info.get('ext', 'mp4')
+                    "is_hls": '.m3u8' in cf['url'] and 'googlevideo' not in cf['url'],
+                    "ext": cf.get('ext', 'mp4')
                 })
 
-            # Select 720p or 1080p by default for fast, smooth loading
-            default_index = 0
-            for idx, q in enumerate(quality_options):
-                if q['height'] in (720, 1080):
-                    default_index = idx
-                    break
+        # 2. Video-only formats paired with best audio track
+        video_formats = [
+            f for f in clean_formats 
+            if f.get('vcodec') != 'none' and f.get('height') and f.get('url')
+        ]
+        video_formats.sort(key=lambda x: (x.get('height') or 0, x.get('ext') == 'mp4'), reverse=True)
 
-            return {
-                "success": True,
-                "title": title,
-                "uploader": uploader,
-                "duration": duration,
-                "duration_str": format_duration(duration),
-                "thumbnail": thumbnail,
-                "webpage_url": webpage_url,
-                "is_direct": False,
-                "qualities": quality_options,
-                "default_quality_index": default_index,
-                "source": info.get('extractor_key') or "Web"
+        for vf in video_formats:
+            h = vf.get('height') or 0
+            if h >= 144 and h not in seen_heights:
+                seen_heights.add(h)
+                has_audio = vf.get('acodec') != 'none'
+                stream_type = "direct" if has_audio else ("mux" if best_audio_url else "direct")
+                is_hls = '.m3u8' in vf['url'] and 'googlevideo' not in vf['url']
+                
+                quality_options.append({
+                    "label": f"{h}p" + (" HD" if h in (720, 1080) else "") + (" 4K" if h >= 2160 else ""),
+                    "height": h,
+                    "type": stream_type,
+                    "video_url": vf['url'],
+                    "audio_url": None if has_audio else best_audio_url,
+                    "is_hls": is_hls,
+                    "ext": vf.get('ext', 'mp4')
+                })
+
+        quality_options.sort(key=lambda x: x.get('height', 0), reverse=True)
+
+        if not quality_options and info.get('url'):
+            direct_url = info['url']
+            quality_options.append({
+                "label": "Auto",
+                "height": info.get('height') or 720,
+                "type": "direct",
+                "video_url": direct_url,
+                "audio_url": None,
+                "is_hls": '.m3u8' in direct_url and 'googlevideo' not in direct_url,
+                "ext": info.get('ext', 'mp4')
+            })
+
+        default_index = 0
+        for idx, q in enumerate(quality_options):
+            if q['height'] in (720, 1080):
+                default_index = idx
+                break
+
+        return {
+            "success": True,
+            "is_playlist": False,
+            "title": title,
+            "uploader": uploader,
+            "duration": duration,
+            "duration_str": format_duration(duration),
+            "thumbnail": thumbnail,
+            "webpage_url": webpage_url,
+            "is_direct": False,
+            "qualities": quality_options,
+            "default_quality_index": default_index,
+            "source": info.get('extractor_key') or "Web"
+        }
+
+
+def extract_video_info(url: str, force_single: bool = False) -> Dict[str, Any]:
+    """
+    Extract video metadata and available stream formats from any video or playlist URL.
+    Detects playlists automatically.
+    """
+    cleaned_url = normalize_storage_url(url.strip())
+
+    # If it's a direct media file, no playlist check needed
+    if is_direct_media_link(cleaned_url):
+        return extract_single_video_info(cleaned_url)
+
+    # Check for playlist if force_single is not requested
+    if not force_single:
+        flat_opts = {
+            'quiet': True,
+            'skip_download': True,
+            'extract_flat': 'in_playlist',
+            'remote_components': ['ejs:github'],
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
             }
+        }
 
+        try:
+            with yt_dlp.YoutubeDL(flat_opts) as ydl:
+                info = ydl.extract_info(cleaned_url, download=False)
+                if info:
+                    entries = list(info.get('entries', [])) if 'entries' in info else []
+                    is_playlist = (info.get('_type') == 'playlist') or (len(entries) > 1)
+                    
+                    if is_playlist and entries:
+                        playlist_title = info.get('title') or "Playlist"
+                        formatted_entries = []
+                        for idx, entry in enumerate(entries):
+                            if not entry:
+                                continue
+                            e_url = entry.get('url')
+                            if not e_url and entry.get('id'):
+                                e_url = f"https://www.youtube.com/watch?v={entry.get('id')}"
+                            if not e_url:
+                                continue
+                            formatted_entries.append({
+                                "index": idx,
+                                "id": entry.get('id') or str(idx),
+                                "title": entry.get('title') or f"Track {idx + 1}",
+                                "duration_str": format_duration(entry.get('duration')),
+                                "duration": entry.get('duration'),
+                                "url": e_url
+                            })
+
+                        # Extract full stream info for the first track so playback begins immediately
+                        first_track_info = {}
+                        if formatted_entries:
+                            first_track_info = extract_single_video_info(formatted_entries[0]['url'])
+
+                        return {
+                            "success": True,
+                            "is_playlist": True,
+                            "playlist_title": playlist_title,
+                            "total_tracks": len(formatted_entries),
+                            "entries": formatted_entries,
+                            # Provide first track details and streams
+                            "title": first_track_info.get("title") or (formatted_entries[0]["title"] if formatted_entries else playlist_title),
+                            "duration": first_track_info.get("duration"),
+                            "duration_str": first_track_info.get("duration_str", "--:--"),
+                            "thumbnail": first_track_info.get("thumbnail"),
+                            "qualities": first_track_info.get("qualities", []),
+                            "default_quality_index": first_track_info.get("default_quality_index", 0),
+                            "current_track_index": 0
+                        }
+        except Exception as e:
+            # If flat extraction failed or timed out, continue to single extraction
+            pass
+
+    # Single video extraction
+    try:
+        return extract_single_video_info(cleaned_url)
     except Exception as e:
         return {
             "success": False,
             "error": str(e),
             "fallback_url": cleaned_url,
-            "title": "Video Stream",
+            "title": "Stream Video",
             "qualities": [
                 {
                     "label": "Direct",

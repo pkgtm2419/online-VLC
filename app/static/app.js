@@ -1,91 +1,155 @@
 /**
- * Online VLC - Clean Ad-Free Video Player
- * Handles extraction, guaranteed autoplay, speed control, and multi-format playback.
+ * PVP (Personal Video Player) - Client Logic
+ * Authentic VLC Media Player layout, shortcuts, playlist support, and guaranteed autoplay.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  const urlInput = document.getElementById('urlInput');
-  const btnPaste = document.getElementById('btnPaste');
-  const btnPlay = document.getElementById('btnPlay');
-  const btnText = document.getElementById('btnText');
-  const btnSpinner = document.getElementById('btnSpinner');
+  // DOM Elements - VLC Window & Menubar
+  const vlcWindow = document.getElementById('vlcWindow');
+  const windowTitle = document.getElementById('windowTitle');
 
-  const errorAlert = document.getElementById('errorAlert');
-  const errorMessage = document.getElementById('errorMessage');
-  const btnDismissError = document.getElementById('btnDismissError');
+  // Menubar items
+  const menuOpenStream = document.getElementById('menuOpenStream');
+  const menuTogglePlaylist = document.getElementById('menuTogglePlaylist');
+  const menuStopVideo = document.getElementById('menuStopVideo');
+  const menuPlayPause = document.getElementById('menuPlayPause');
+  const menuStop = document.getElementById('menuStop');
+  const menuPrev = document.getElementById('menuPrev');
+  const menuNext = document.getElementById('menuNext');
+  const menuFaster = document.getElementById('menuFaster');
+  const menuSlower = document.getElementById('menuSlower');
+  const menuNormal = document.getElementById('menuNormal');
+  const menuMute = document.getElementById('menuMute');
+  const menuVolUp = document.getElementById('menuVolUp');
+  const menuVolDown = document.getElementById('menuVolDown');
+  const menuFullscreen = document.getElementById('menuFullscreen');
+  const menuViewPlaylist = document.getElementById('menuViewPlaylist');
+  const menuAbout = document.getElementById('menuAbout');
 
-  const placeholder = document.getElementById('placeholder');
+  // Center display area
+  const vlcDisplay = document.getElementById('vlcDisplay');
+  const coneScreen = document.getElementById('coneScreen');
+  const btnQuickOpen = document.getElementById('btnQuickOpen');
   const videoPlayer = document.getElementById('videoPlayer');
   const videoLoader = document.getElementById('videoLoader');
-  const loaderText = document.getElementById('loaderText');
-
-  const videoMeta = document.getElementById('videoMeta');
-  const videoTitle = document.getElementById('videoTitle');
-  const speedSelect = document.getElementById('speedSelect');
-  const qualitySelect = document.getElementById('qualitySelect');
-
+  const loaderMsg = document.getElementById('loaderMsg');
   const unmutePrompt = document.getElementById('unmutePrompt');
   const btnUnmute = document.getElementById('btnUnmute');
 
-  let currentVideoData = null;
-  let currentQualities = [];
-  let hlsInstance = null;
+  // Playlist Panel
+  const playlistPanel = document.getElementById('playlistPanel');
+  const playlistTitle = document.getElementById('playlistTitle');
+  const playlistCount = document.getElementById('playlistCount');
+  const playlistItems = document.getElementById('playlistItems');
+  const btnClosePlaylist = document.getElementById('btnClosePlaylist');
 
-  // Paste button
-  btnPaste.addEventListener('click', async () => {
+  // Bottom controls toolbar
+  const timeElapsed = document.getElementById('timeElapsed');
+  const timeTotal = document.getElementById('timeTotal');
+  const progressBar = document.getElementById('progressBar');
+  const seekSlider = document.getElementById('seekSlider');
+
+  const btnPlayPause = document.getElementById('btnPlayPause');
+  const playSvg = document.getElementById('playSvg');
+  const pauseSvg = document.getElementById('pauseSvg');
+  const btnPrev = document.getElementById('btnPrev');
+  const btnStop = document.getElementById('btnStop');
+  const btnNext = document.getElementById('btnNext');
+  const btnFullscreen = document.getElementById('btnFullscreen');
+  const btnPlaylistToggle = document.getElementById('btnPlaylistToggle');
+  const btnLoop = document.getElementById('btnLoop');
+  const loopBadge = document.getElementById('loopBadge');
+  const btnOpenStreamBar = document.getElementById('btnOpenStreamBar');
+
+  const btnSpeedDown = document.getElementById('btnSpeedDown');
+  const speedValue = document.getElementById('speedValue');
+  const btnSpeedUp = document.getElementById('btnSpeedUp');
+  const qualitySelect = document.getElementById('qualitySelect');
+
+  const btnMute = document.getElementById('btnMute');
+  const volHighSvg = document.getElementById('volHighSvg');
+  const volMuteSvg = document.getElementById('volMuteSvg');
+  const volumeSlider = document.getElementById('volumeSlider');
+  const volumePercent = document.getElementById('volumePercent');
+
+  // Network Stream Modal Dialog
+  const streamModal = document.getElementById('streamModal');
+  const urlModalInput = document.getElementById('urlModalInput');
+  const btnModalPaste = document.getElementById('btnModalPaste');
+  const btnModalStream = document.getElementById('btnModalStream');
+  const modalBtnText = document.getElementById('modalBtnText');
+  const modalSpinner = document.getElementById('modalSpinner');
+  const btnModalCancel = document.getElementById('btnModalCancel');
+  const btnModalClose = document.getElementById('btnModalClose');
+  const modalError = document.getElementById('modalError');
+
+  // State Management
+  let hlsInstance = null;
+  let currentPlaylist = [];
+  let currentTrackIndex = -1;
+  let currentQualities = [];
+  let showRemainingTime = false;
+  let loopMode = 'off'; // 'off' | 'all' | 'one'
+  let currentPlaybackRate = 1.0;
+
+  // 1. Initial State: Open Network Stream Modal automatically on page load
+  openStreamModal();
+
+  // Focus modal input on load
+  setTimeout(() => {
+    urlModalInput.focus();
+  }, 200);
+
+  // Modal Open/Close Controls
+  function openStreamModal() {
+    modalError.classList.add('hidden');
+    streamModal.classList.remove('hidden');
+    urlModalInput.focus();
+    urlModalInput.select();
+  }
+
+  function closeStreamModal() {
+    streamModal.classList.add('hidden');
+  }
+
+  btnModalCancel.addEventListener('click', closeStreamModal);
+  btnModalClose.addEventListener('click', closeStreamModal);
+  btnQuickOpen.addEventListener('click', openStreamModal);
+  btnOpenStreamBar.addEventListener('click', openStreamModal);
+  menuOpenStream.addEventListener('click', openStreamModal);
+
+  // Paste button inside modal
+  btnModalPaste.addEventListener('click', async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
-        urlInput.value = text.trim();
-        handleExtract();
+        urlModalInput.value = text.trim();
+        urlModalInput.focus();
       }
     } catch {
-      urlInput.focus();
+      urlModalInput.focus();
     }
   });
 
-  // Enter key in input
-  urlInput.addEventListener('keydown', (e) => {
+  urlModalInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      handleExtract();
+      handleStreamSubmit();
     }
   });
 
-  btnPlay.addEventListener('click', handleExtract);
-  btnDismissError.addEventListener('click', hideError);
+  btnModalStream.addEventListener('click', handleStreamSubmit);
 
-  // Speed Control
-  speedSelect.addEventListener('change', () => {
-    videoPlayer.playbackRate = parseFloat(speedSelect.value);
-  });
-
-  // Unmute banner button
-  btnUnmute.addEventListener('click', () => {
-    videoPlayer.muted = false;
-    unmutePrompt.classList.add('hidden');
-  });
-
-  // Clicking anywhere on video or container unmutes if muted by autoplay policy
-  videoPlayer.addEventListener('click', () => {
-    if (videoPlayer.muted && !unmutePrompt.classList.contains('hidden')) {
-      videoPlayer.muted = false;
-      unmutePrompt.classList.add('hidden');
-    }
-  });
-
-  // Extraction logic
-  async function handleExtract() {
-    const rawUrl = urlInput.value.trim();
+  // Handle URL Submission (Single Video or Playlist)
+  async function handleStreamSubmit() {
+    const rawUrl = urlModalInput.value.trim();
     if (!rawUrl) {
-      showError('Please paste a video URL first.');
-      urlInput.focus();
+      showModalError('Please enter or paste a valid video URL.');
       return;
     }
 
-    hideError();
-    setLoading(true);
-    unmutePrompt.classList.add('hidden');
+    modalError.classList.add('hidden');
+    setModalLoading(true);
 
     try {
       const res = await fetch('/api/extract', {
@@ -96,27 +160,184 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data = await res.json();
 
-      if (!res.ok || (!data.success && !data.qualities?.length)) {
+      if (!res.ok || (!data.success && !data.qualities?.length && !data.entries?.length)) {
         throw new Error(data.detail || data.error || 'Failed to extract video stream.');
       }
 
-      currentVideoData = data;
-      renderPlayer(data);
+      // Close modal immediately upon valid stream response
+      closeStreamModal();
+
+      if (data.is_playlist && data.entries && data.entries.length > 0) {
+        // Handle Playlist
+        setupPlaylist(data);
+      } else {
+        // Handle Single Video
+        currentPlaylist = [{
+          index: 0,
+          title: data.title || 'Video',
+          duration_str: data.duration_str || '--:--',
+          url: rawUrl,
+          data: data
+        }];
+        currentTrackIndex = 0;
+        renderPlaylistUI();
+        loadVideoData(data);
+      }
     } catch (err) {
       console.error(err);
-      showError(err.message || 'Could not load video. Check the link and try again.');
+      showModalError(err.message || 'Could not stream media. Check the link.');
     } finally {
-      setLoading(false);
+      setModalLoading(false);
     }
   }
 
-  // Render video & metadata
-  function renderPlayer(data) {
-    placeholder.classList.add('hidden');
-    videoPlayer.classList.remove('hidden');
-    videoMeta.classList.remove('hidden');
+  // Setup Playlist
+  function setupPlaylist(data) {
+    currentPlaylist = data.entries.map((entry, idx) => ({
+      index: idx,
+      title: entry.title,
+      duration_str: entry.duration_str,
+      url: entry.url,
+      data: idx === 0 ? data : null // first item data is already extracted
+    }));
 
-    videoTitle.textContent = data.title || 'Video';
+    currentTrackIndex = 0;
+    playlistTitle.textContent = data.playlist_title || 'Playlist';
+    playlistCount.textContent = `(${currentPlaylist.length} items)`;
+
+    renderPlaylistUI();
+    // Open playlist panel automatically for playlists
+    playlistPanel.classList.remove('hidden');
+
+    // Start playing track 1
+    loadVideoData(data);
+  }
+
+  // Render Playlist Table
+  function renderPlaylistUI() {
+    playlistItems.innerHTML = '';
+    currentPlaylist.forEach((item, idx) => {
+      const row = document.createElement('div');
+      row.className = `playlist-item ${idx === currentTrackIndex ? 'active' : ''}`;
+      row.innerHTML = `
+        <span class="col-num">${idx + 1}</span>
+        <span class="col-title" title="${item.title}">${item.title}</span>
+        <span class="col-dur">${item.duration_str || '--:--'}</span>
+      `;
+      row.addEventListener('click', () => {
+        playTrackByIndex(idx);
+      });
+      playlistItems.appendChild(row);
+    });
+  }
+
+  // Play Specific Track in Playlist
+  async function playTrackByIndex(index) {
+    if (index < 0 || index >= currentPlaylist.length) return;
+    currentTrackIndex = index;
+    renderPlaylistUI();
+
+    const track = currentPlaylist[index];
+    windowTitle.textContent = `${track.title} - PVP`;
+
+    if (track.data && track.data.qualities) {
+      loadVideoData(track.data);
+      return;
+    }
+
+    // Extract stream for this track
+    showVideoLoader(`Loading track ${index + 1}: ${track.title}...`);
+    try {
+      const res = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: track.url })
+      });
+      const data = await res.json();
+      track.data = data;
+      loadVideoData(data);
+    } catch (e) {
+      console.error(e);
+      hideVideoLoader();
+      alert(`Could not load track: ${track.title}`);
+    }
+  }
+
+  // Next / Previous Playlist Navigation
+  function playNextTrack() {
+    if (currentPlaylist.length <= 1) {
+      if (loopMode === 'one') {
+        videoPlayer.currentTime = 0;
+        videoPlayer.play();
+      }
+      return;
+    }
+
+    if (currentTrackIndex + 1 < currentPlaylist.length) {
+      playTrackByIndex(currentTrackIndex + 1);
+    } else if (loopMode === 'all') {
+      playTrackByIndex(0);
+    }
+  }
+
+  function playPrevTrack() {
+    if (videoPlayer.currentTime > 3) {
+      videoPlayer.currentTime = 0;
+      return;
+    }
+    if (currentTrackIndex > 0) {
+      playTrackByIndex(currentTrackIndex - 1);
+    } else if (loopMode === 'all') {
+      playTrackByIndex(currentPlaylist.length - 1);
+    }
+  }
+
+  btnNext.addEventListener('click', playNextTrack);
+  btnPrev.addEventListener('click', playPrevTrack);
+  menuNext.addEventListener('click', playNextTrack);
+  menuPrev.addEventListener('click', playPrevTrack);
+
+  // Advance to next video on track end
+  videoPlayer.addEventListener('ended', () => {
+    if (loopMode === 'one') {
+      videoPlayer.currentTime = 0;
+      videoPlayer.play();
+    } else {
+      playNextTrack();
+    }
+  });
+
+  // Loop Mode Toggle (Off -> All -> One)
+  btnLoop.addEventListener('click', () => {
+    if (loopMode === 'off') {
+      loopMode = 'all';
+      loopBadge.textContent = 'All';
+      btnLoop.classList.add('active');
+    } else if (loopMode === 'all') {
+      loopMode = 'one';
+      loopBadge.textContent = '1';
+    } else {
+      loopMode = 'off';
+      loopBadge.textContent = 'Off';
+      btnLoop.classList.remove('active');
+    }
+  });
+
+  // Toggle Playlist Panel
+  function togglePlaylist() {
+    playlistPanel.classList.toggle('hidden');
+  }
+
+  btnPlaylistToggle.addEventListener('click', togglePlaylist);
+  btnClosePlaylist.addEventListener('click', togglePlaylist);
+  menuTogglePlaylist.addEventListener('click', togglePlaylist);
+  menuViewPlaylist.addEventListener('click', togglePlaylist);
+
+  // Load Video & Guaranteed Autoplay
+  function loadVideoData(data) {
+    coneScreen.classList.add('hidden');
+    videoPlayer.classList.remove('hidden');
+    windowTitle.textContent = `${data.title || 'Video'} - PVP`;
 
     currentQualities = data.qualities || [];
     qualitySelect.innerHTML = '';
@@ -131,11 +352,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultIdx = data.default_quality_index ?? 0;
     qualitySelect.value = defaultIdx;
 
-    loadStream(defaultIdx, false);
+    loadStreamQuality(defaultIdx, false);
   }
 
-  // Load and autoplay stream
-  function loadStream(index, retainTime = false) {
+  function loadStreamQuality(index, retainTime = false) {
     if (!currentQualities || !currentQualities[index]) return;
     const q = currentQualities[index];
     const prevTime = retainTime ? videoPlayer.currentTime : 0;
@@ -154,12 +374,12 @@ document.addEventListener('DOMContentLoaded', () => {
         hlsInstance.attachMedia(videoPlayer);
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
           if (retainTime && prevTime > 0) videoPlayer.currentTime = prevTime;
-          attemptAutoplay();
+          triggerAutoplay();
         });
       } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
         videoPlayer.src = q.video_url;
         if (retainTime && prevTime > 0) videoPlayer.currentTime = prevTime;
-        attemptAutoplay();
+        triggerAutoplay();
       }
     } else {
       const streamUrl = q.play_url || q.video_url;
@@ -170,88 +390,349 @@ document.addEventListener('DOMContentLoaded', () => {
         videoPlayer.currentTime = prevTime;
       }
 
-      // Autoplay as soon as data is ready
       videoPlayer.addEventListener('canplay', () => {
-        attemptAutoplay();
+        triggerAutoplay();
       }, { once: true });
 
-      // Immediate attempt
-      attemptAutoplay();
+      triggerAutoplay();
     }
 
-    // Apply speed
-    videoPlayer.playbackRate = parseFloat(speedSelect.value);
+    applyPlaybackSpeed(currentPlaybackRate);
   }
 
-  // Robust Autoplay handler
-  function attemptAutoplay() {
-    videoPlayer.playbackRate = parseFloat(speedSelect.value);
+  qualitySelect.addEventListener('change', () => {
+    const idx = parseInt(qualitySelect.value, 10);
+    loadStreamQuality(idx, true);
+  });
 
-    // Try unmuted play first
+  // Autoplay handler with audio policy fallback
+  function triggerAutoplay() {
+    applyPlaybackSpeed(currentPlaybackRate);
+    hideVideoLoader();
+
     const playPromise = videoPlayer.play();
     if (playPromise !== undefined) {
       playPromise.then(() => {
-        // Playing unmuted successfully!
+        updatePlayPauseUI(true);
         unmutePrompt.classList.add('hidden');
       }).catch(err => {
-        console.warn('Unmuted autoplay blocked by browser policy. Falling back to muted autoplay.', err);
-        // Fallback: Muted autoplay is always permitted by browsers
+        console.warn('Audio autoplay blocked, playing muted...', err);
         videoPlayer.muted = true;
+        updateVolumeUI();
         videoPlayer.play().then(() => {
-          // Show unmute prompt so user knows they can unmute with one click
+          updatePlayPauseUI(true);
           unmutePrompt.classList.remove('hidden');
-        }).catch(e => {
-          console.error('Autoplay failed completely:', e);
-        });
+        }).catch(e => console.error('Autoplay error:', e));
       });
     }
   }
 
-  // Quality switch
-  qualitySelect.addEventListener('change', () => {
-    const idx = parseInt(qualitySelect.value, 10);
-    loadStream(idx, true);
+  // Play / Pause Toggle
+  function togglePlayPause() {
+    if (videoPlayer.paused || videoPlayer.ended) {
+      videoPlayer.play().then(() => updatePlayPauseUI(true));
+    } else {
+      videoPlayer.pause();
+      updatePlayPauseUI(false);
+    }
+  }
+
+  btnPlayPause.addEventListener('click', togglePlayPause);
+  menuPlayPause.addEventListener('click', togglePlayPause);
+  videoPlayer.addEventListener('click', togglePlayPause);
+
+  videoPlayer.addEventListener('play', () => updatePlayPauseUI(true));
+  videoPlayer.addEventListener('pause', () => updatePlayPauseUI(false));
+
+  function updatePlayPauseUI(isPlaying) {
+    if (isPlaying) {
+      playSvg.classList.add('hidden');
+      pauseSvg.classList.remove('hidden');
+    } else {
+      playSvg.classList.remove('hidden');
+      pauseSvg.classList.add('hidden');
+    }
+  }
+
+  // Stop Action (S)
+  function stopPlayback() {
+    videoPlayer.pause();
+    videoPlayer.currentTime = 0;
+    if (hlsInstance) {
+      hlsInstance.destroy();
+      hlsInstance = null;
+    }
+    videoPlayer.src = '';
+    videoPlayer.classList.add('hidden');
+    coneScreen.classList.remove('hidden');
+    updatePlayPauseUI(false);
+    windowTitle.textContent = 'PVP (Personal Video Player)';
+    timeElapsed.textContent = '00:00:00';
+    timeTotal.textContent = '00:00:00';
+    progressBar.style.width = '0%';
+    seekSlider.value = 0;
+  }
+
+  btnStop.addEventListener('click', stopPlayback);
+  menuStop.addEventListener('click', stopPlayback);
+  menuStopVideo.addEventListener('click', stopPlayback);
+
+  // Time & Progress Slider Updates
+  videoPlayer.addEventListener('timeupdate', () => {
+    if (isNaN(videoPlayer.duration)) return;
+    const cur = videoPlayer.currentTime;
+    const dur = videoPlayer.duration;
+    const pct = (cur / dur) * 100;
+
+    progressBar.style.width = `${pct}%`;
+    seekSlider.value = pct;
+
+    timeElapsed.textContent = formatTime(cur);
+
+    if (showRemainingTime) {
+      timeTotal.textContent = `-${formatTime(Math.max(0, dur - cur))}`;
+    } else {
+      timeTotal.textContent = formatTime(dur);
+    }
   });
 
-  // Keyboard shortcut: Space (play/pause), M (unmute/mute), arrows (seek)
-  window.addEventListener('keydown', (e) => {
-    if (document.activeElement === urlInput) return;
+  // Toggle Remaining vs Total time display on click
+  timeTotal.addEventListener('click', () => {
+    showRemainingTime = !showRemainingTime;
+  });
 
-    if (e.key === ' ' || e.code === 'Space') {
+  // Seek Slider
+  seekSlider.addEventListener('input', () => {
+    if (isNaN(videoPlayer.duration)) return;
+    const targetTime = (parseFloat(seekSlider.value) / 100) * videoPlayer.duration;
+    videoPlayer.currentTime = targetTime;
+  });
+
+  // Volume Controls (0% - 125% like VLC)
+  volumeSlider.addEventListener('input', () => {
+    const val = parseInt(volumeSlider.value, 10);
+    // Standard HTML5 video volume is 0.0 - 1.0 (100%). We cap audio at 1.0, but show VLC 125%
+    videoPlayer.volume = Math.min(1.0, val / 100);
+    videoPlayer.muted = false;
+    updateVolumeUI();
+  });
+
+  function toggleMute() {
+    videoPlayer.muted = !videoPlayer.muted;
+    updateVolumeUI();
+  }
+
+  btnMute.addEventListener('click', toggleMute);
+  menuMute.addEventListener('click', toggleMute);
+  btnUnmute.addEventListener('click', () => {
+    videoPlayer.muted = false;
+    unmutePrompt.classList.add('hidden');
+    updateVolumeUI();
+  });
+
+  function updateVolumeUI() {
+    const isMuted = videoPlayer.muted || videoPlayer.volume === 0;
+    if (isMuted) {
+      volHighSvg.classList.add('hidden');
+      volMuteSvg.classList.remove('hidden');
+      volumePercent.textContent = '0%';
+    } else {
+      volHighSvg.classList.remove('hidden');
+      volMuteSvg.classList.add('hidden');
+      const val = parseInt(volumeSlider.value, 10);
+      volumePercent.textContent = `${val}%`;
+    }
+  }
+
+  // Playback Speed Controller ([ Slower, ] Faster, = Normal)
+  function applyPlaybackSpeed(rate) {
+    currentPlaybackRate = Math.max(0.25, Math.min(4.0, Math.round(rate * 100) / 100));
+    videoPlayer.playbackRate = currentPlaybackRate;
+    speedValue.textContent = `${currentPlaybackRate.toFixed(2)}x`;
+  }
+
+  btnSpeedUp.addEventListener('click', () => applyPlaybackSpeed(currentPlaybackRate + 0.1));
+  btnSpeedDown.addEventListener('click', () => applyPlaybackSpeed(currentPlaybackRate - 0.1));
+  menuFaster.addEventListener('click', () => applyPlaybackSpeed(currentPlaybackRate + 0.1));
+  menuSlower.addEventListener('click', () => applyPlaybackSpeed(currentPlaybackRate - 0.1));
+  menuNormal.addEventListener('click', () => applyPlaybackSpeed(1.0));
+
+  document.querySelectorAll('.speed-opt').forEach(opt => {
+    opt.addEventListener('click', () => {
+      const spd = parseFloat(opt.getAttribute('data-speed'));
+      if (spd) applyPlaybackSpeed(spd);
+    });
+  });
+
+  // Fullscreen (F)
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      if (vlcWindow.requestFullscreen) {
+        vlcWindow.requestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  }
+
+  btnFullscreen.addEventListener('click', toggleFullscreen);
+  menuFullscreen.addEventListener('click', toggleFullscreen);
+  videoPlayer.addEventListener('dblclick', toggleFullscreen);
+
+  // Authenticate VLC Keyboard Shortcuts
+  window.addEventListener('keydown', (e) => {
+    // If user is typing in a modal or input box, allow normal typing
+    if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+      if (e.key === 'Escape') {
+        closeStreamModal();
+      }
+      return;
+    }
+
+    const ctrl = e.ctrlKey || e.metaKey;
+
+    // Ctrl + N: Open Network Stream Modal
+    if (ctrl && e.key.toLowerCase() === 'n') {
       e.preventDefault();
-      if (videoPlayer.paused) videoPlayer.play();
-      else videoPlayer.pause();
-    } else if (e.key.toLowerCase() === 'm') {
-      videoPlayer.muted = !videoPlayer.muted;
-      if (!videoPlayer.muted) unmutePrompt.classList.add('hidden');
-    } else if (e.key === 'ArrowLeft') {
-      videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 5);
-    } else if (e.key === 'ArrowRight') {
-      videoPlayer.currentTime = Math.min(videoPlayer.duration || Infinity, videoPlayer.currentTime + 5);
+      openStreamModal();
+      return;
+    }
+
+    // Ctrl + L: Toggle Playlist
+    if (ctrl && e.key.toLowerCase() === 'l') {
+      e.preventDefault();
+      togglePlaylist();
+      return;
+    }
+
+    // Ctrl + Up / Down: Volume +/- 5%
+    if (ctrl && e.key === 'ArrowUp') {
+      e.preventDefault();
+      volumeSlider.value = Math.min(125, parseInt(volumeSlider.value, 10) + 5);
+      volumeSlider.dispatchEvent(new Event('input'));
+      return;
+    }
+    if (ctrl && e.key === 'ArrowDown') {
+      e.preventDefault();
+      volumeSlider.value = Math.max(0, parseInt(volumeSlider.value, 10) - 5);
+      volumeSlider.dispatchEvent(new Event('input'));
+      return;
+    }
+
+    // Ctrl + Left / Right: 1 minute jump
+    if (ctrl && e.key === 'ArrowRight') {
+      e.preventDefault();
+      videoPlayer.currentTime = Math.min(videoPlayer.duration || Infinity, videoPlayer.currentTime + 60);
+      return;
+    }
+    if (ctrl && e.key === 'ArrowLeft') {
+      e.preventDefault();
+      videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 60);
+      return;
+    }
+
+    // Normal Keys
+    switch (e.key) {
+      case ' ':
+        e.preventDefault();
+        togglePlayPause();
+        break;
+      case 's':
+      case 'S':
+        e.preventDefault();
+        stopPlayback();
+        break;
+      case 'f':
+      case 'F':
+        e.preventDefault();
+        toggleFullscreen();
+        break;
+      case 'm':
+      case 'M':
+        e.preventDefault();
+        toggleMute();
+        break;
+      case 'n':
+      case 'N':
+        e.preventDefault();
+        playNextTrack();
+        break;
+      case 'p':
+      case 'P':
+        e.preventDefault();
+        playPrevTrack();
+        break;
+      case '[':
+        e.preventDefault();
+        applyPlaybackSpeed(currentPlaybackRate - 0.1);
+        break;
+      case ']':
+        e.preventDefault();
+        applyPlaybackSpeed(currentPlaybackRate + 0.1);
+        break;
+      case '=':
+        e.preventDefault();
+        applyPlaybackSpeed(1.0);
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        videoPlayer.currentTime = Math.min(videoPlayer.duration || Infinity, videoPlayer.currentTime + 10);
+        break;
+      case 'ArrowLeft':
+        e.preventDefault();
+        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+        break;
+      case 'Escape':
+        closeStreamModal();
+        if (document.fullscreenElement) {
+          document.exitFullscreen();
+        }
+        break;
     }
   });
 
   // Helpers
-  function setLoading(loading) {
-    if (loading) {
-      btnPlay.disabled = true;
-      btnSpinner.classList.remove('hidden');
-      btnText.textContent = '';
-      videoLoader.classList.remove('hidden');
+  function formatTime(seconds) {
+    if (!seconds || isNaN(seconds)) return '00:00:00';
+    const s = Math.floor(seconds);
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+    const h = hrs.toString().padStart(2, '0');
+    const m = mins.toString().padStart(2, '0');
+    const sc = secs.toString().padStart(2, '0');
+    return `${h}:${m}:${sc}`;
+  }
+
+  function showVideoLoader(msg) {
+    loaderMsg.textContent = msg || 'Loading ad-free video...';
+    videoLoader.classList.remove('hidden');
+  }
+
+  function hideVideoLoader() {
+    videoLoader.classList.add('hidden');
+  }
+
+  function setModalLoading(isLoading) {
+    if (isLoading) {
+      btnModalStream.disabled = true;
+      modalSpinner.classList.remove('hidden');
+      modalBtnText.textContent = '';
     } else {
-      btnPlay.disabled = false;
-      btnSpinner.classList.add('hidden');
-      btnText.textContent = 'Play';
-      videoLoader.classList.add('hidden');
+      btnModalStream.disabled = false;
+      modalSpinner.classList.add('hidden');
+      modalBtnText.textContent = 'Stream';
     }
   }
 
-  function showError(msg) {
-    errorMessage.textContent = msg;
-    errorAlert.classList.remove('hidden');
+  function showModalError(msg) {
+    modalError.textContent = msg;
+    modalError.classList.remove('hidden');
   }
 
-  function hideError() {
-    errorAlert.classList.add('hidden');
-  }
+  menuAbout.addEventListener('click', () => {
+    alert('PVP (Personal Video Player)\nUniversal Ad-Free Streaming Player\nBuilt with FastAPI & yt-dlp');
+  });
 });
