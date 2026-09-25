@@ -167,29 +167,55 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       const data = await res.json();
+      let finalData = data;
+      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
 
-      if (!res.ok || (!data.success && !data.qualities?.length && !data.entries?.length)) {
-        throw new Error(data.detail || data.error || 'Failed to extract video stream.');
+      if (!res.ok || (!data.success && !data.qualities?.length && !data.entries?.length) || (data.qualities?.length === 1 && data.qualities[0].label === 'Direct' && isYouTubeUrl)) {
+        if (isYouTubeUrl) {
+          const ytId = isYouTubeUrl[1];
+          let ytTitle = (data && data.title && data.title !== 'Stream Video') ? data.title : 'YouTube Video';
+          try {
+            const oRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`);
+            if (oRes.ok) {
+              const oData = await oRes.json();
+              ytTitle = oData.title || ytTitle;
+            }
+          } catch (_) {}
+
+          finalData = {
+            success: true,
+            title: ytTitle,
+            is_embed_fallback: true,
+            qualities: [{
+              label: 'Auto',
+              type: 'embed',
+              video_url: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1`
+            }],
+            default_quality_index: 0
+          };
+        } else {
+          throw new Error(data.detail || data.error || 'Failed to extract video stream.');
+        }
       }
 
       // Close modal immediately upon valid response
       closeStreamModal();
 
-      if (data.is_playlist && data.entries && data.entries.length > 0) {
+      if (finalData.is_playlist && finalData.entries && finalData.entries.length > 0) {
         // Handle Playlist
-        setupPlaylist(data);
+        setupPlaylist(finalData);
       } else {
         // Handle Single Video
         currentPlaylist = [{
           index: 0,
-          title: data.title || 'Video',
-          duration_str: data.duration_str || '--:--',
+          title: finalData.title || 'Video',
+          duration_str: finalData.duration_str || '--:--',
           url: rawUrl,
-          data: data
+          data: finalData
         }];
         currentTrackIndex = 0;
         renderPlaylistUI();
-        loadVideoData(data);
+        loadVideoData(finalData);
       }
     } catch (err) {
       console.error(err);
@@ -259,8 +285,26 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify({ url: track.url })
       });
       const data = await res.json();
-      track.data = data;
-      loadVideoData(data);
+      let finalData = data;
+      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(track.url);
+      if (!res.ok || (!data.success && !data.qualities?.length) || (data.qualities?.length === 1 && data.qualities[0].label === 'Direct' && isYouTubeUrl)) {
+        if (isYouTubeUrl) {
+          const ytId = isYouTubeUrl[1];
+          finalData = {
+            success: true,
+            title: track.title,
+            is_embed_fallback: true,
+            qualities: [{
+              label: 'Auto',
+              type: 'embed',
+              video_url: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1`
+            }],
+            default_quality_index: 0
+          };
+        }
+      }
+      track.data = finalData;
+      loadVideoData(finalData);
     } catch (e) {
       console.error(e);
       hideVideoLoader();
