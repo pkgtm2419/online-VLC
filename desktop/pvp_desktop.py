@@ -46,7 +46,7 @@ class StoppableUvicornServer(uvicorn.Server):
 
 def run_server(port):
     global server
-    config = uvicorn.Config(fastapi_app, host="127.0.0.1", port=port, log_level="info")
+    config = uvicorn.Config(fastapi_app, host="0.0.0.0", port=port, log_level="info")
     server = StoppableUvicornServer(config)
     server.run()
 

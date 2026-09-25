@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PVP (Personal Video Player)</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
+  <script src="hls.min.js"></script>
 </head>
 <body class="vlc-theme">
 
@@ -94,6 +94,11 @@
         <div class="menu-item" id="menuView">View
           <div class="dropdown-menu">
             <div class="dropdown-item" id="menuViewPlaylist">Playlist <span>Ctrl+L</span></div>
+          </div>
+        </div>
+        <div class="menu-item" id="menuTools">Tools
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menuServerSettings">Local Server Settings...</div>
           </div>
         </div>
         <div class="menu-item" id="menuHelp">Help
@@ -568,6 +573,39 @@
     </div>
   </div>
 
-  <script src="/static/app.js"></script>
+  <!-- 6. Local Server & Network Settings Modal -->
+  <div id="serverModal" class="vlc-modal-backdrop hidden">
+    <div class="vlc-modal vlc-dialog-window" style="max-width: 440px;">
+      <div class="vlc-modal-header">
+        <div class="modal-title-left">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Local Server Settings</span>
+        </div>
+        <button id="btnServerModalClose" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px;">
+        <p style="font-size: 12px; color: #bbb; margin-bottom: 12px; line-height: 1.5;">
+          PVP is 100% local-first without cloud servers. Direct streams (.mp4, .m3u8, YouTube, Vimeo) play directly on device.
+        </p>
+        <div style="margin-bottom: 12px;">
+          <label style="display:block; font-size: 12px; color: #ff8800; margin-bottom: 6px; font-weight: bold;">Local Backend Server URL:</label>
+          <input type="text" id="localServerInput" placeholder="http://127.0.0.1:8000" style="width: 100%; box-sizing: border-box; background: #1a1a1a; border: 1px solid #444; color: #fff; padding: 7px 10px; border-radius: 4px; font-size: 13px;">
+          <small style="display:block; color: #888; font-size: 11px; margin-top: 6px;">Default: <code>http://127.0.0.1:8000</code>. On mobile over Wi-Fi, enter your PC's LAN IP (e.g. <code>http://192.168.1.15:8000</code>).</small>
+        </div>
+        <div id="serverStatusBadge" style="font-size: 12px; padding: 8px 10px; border-radius: 4px; background: rgba(255,136,0,0.15); border: 1px solid rgba(255,136,0,0.3); color: #ff9900;">
+          Checking local server...
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: flex-end; gap: 8px;">
+        <button id="btnServerReset" class="vlc-dialog-btn">Default</button>
+        <button id="btnServerSave" class="vlc-dialog-btn btn-primary-vlc">Save & Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
 </body>
 </html>

@@ -4,8 +4,16 @@
  * true VLC fullscreen mode with 5s cursor/footer autohide, and robust duration/seeking.
  */
 
-// Base URL for API requests (supports desktop, cloud, and mobile webviews running from file:// assets)
-const API_BASE = (typeof window !== 'undefined' && window.location.protocol === 'file:') ? 'https://online-vlc.onrender.com' : '';
+// Base URL for API requests (100% local, no cloud/Render dependencies)
+let API_BASE = '';
+if (typeof window !== 'undefined') {
+  const savedServer = localStorage.getItem('pvp_local_server_url');
+  if (window.location.protocol === 'file:') {
+    API_BASE = savedServer || 'http://127.0.0.1:8000';
+  } else if (savedServer) {
+    API_BASE = savedServer;
+  }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements - VLC Window & Menubar
@@ -301,6 +309,81 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(checkClipboardForVideoUrl, 400);
   });
 
+  // Resolve media client-side without any backend server (100% offline & local)
+  function resolveMediaClientSide(url, fallbackTitle) {
+    if (!url) return null;
+    const rawUrl = url.trim();
+
+    // YouTube
+    const isYouTube = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
+    if (isYouTube) {
+      const ytId = isYouTube[1];
+      return {
+        success: true,
+        title: fallbackTitle || 'YouTube Video',
+        is_embed_fallback: true,
+        qualities: [{
+          label: 'Auto (Embed)',
+          type: 'embed',
+          video_url: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1`
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    // Vimeo
+    const isVimeo = /vimeo\.com\/(?:video\/)?([0-9]+)/.exec(rawUrl);
+    if (isVimeo) {
+      return {
+        success: true,
+        title: fallbackTitle || 'Vimeo Video',
+        is_embed_fallback: true,
+        qualities: [{
+          label: 'Auto (Embed)',
+          type: 'embed',
+          video_url: `https://player.vimeo.com/video/${isVimeo[1]}?autoplay=1`
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    // Dailymotion
+    const isDm = /dailymotion\.com\/video\/([a-zA-Z0-9]+)/.exec(rawUrl);
+    if (isDm) {
+      return {
+        success: true,
+        title: fallbackTitle || 'Dailymotion Video',
+        is_embed_fallback: true,
+        qualities: [{
+          label: 'Auto (Embed)',
+          type: 'embed',
+          video_url: `https://www.dailymotion.com/embed/video/${isDm[1]}?autoplay=1`
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    // Direct Media / HLS Stream (.m3u8, .mp4, etc.)
+    const isHls = /\.m3u8($|\?)/i.test(rawUrl);
+    const isDirect = isHls || /\.(mp4|webm|mov|mkv|ogg|mp3|flv|avi)($|\?)/i.test(rawUrl);
+    if (isDirect || rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      const cleanName = rawUrl.split('?')[0].split('/').pop() || 'Media Stream';
+      return {
+        success: true,
+        title: fallbackTitle || decodeURIComponent(cleanName),
+        qualities: [{
+          label: isHls ? 'HLS Master' : 'Direct Stream',
+          type: 'direct',
+          video_url: rawUrl,
+          is_hls: isHls
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    return null;
+  }
+
   // Handle URL Submission (Single Video or Playlist)
   async function handleStreamSubmit() {
     const rawUrl = urlModalInput.value.trim();
@@ -313,42 +396,43 @@ document.addEventListener('DOMContentLoaded', () => {
     setModalLoading(true);
 
     try {
-      const res = await fetch(API_BASE + '/api/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: rawUrl })
-      });
+      let finalData = null;
 
-      const data = await res.json();
-      let finalData = data;
-      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
+      // Try local FastAPI backend server first
+      try {
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => timeoutController.abort(), 6000);
+        const res = await fetch(API_BASE + '/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: rawUrl }),
+          signal: timeoutController.signal
+        });
+        clearTimeout(timeoutId);
 
-      if (!res.ok || (!data.success && !data.qualities?.length && !data.entries?.length) || (data.qualities?.length === 1 && data.qualities[0].label === 'Direct' && isYouTubeUrl)) {
-        if (isYouTubeUrl) {
-          const ytId = isYouTubeUrl[1];
-          let ytTitle = (data && data.title && data.title !== 'Stream Video') ? data.title : 'YouTube Video';
-          try {
-            const oRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`);
-            if (oRes.ok) {
-              const oData = await oRes.json();
-              ytTitle = oData.title || ytTitle;
-            }
-          } catch (_) {}
-
-          finalData = {
-            success: true,
-            title: ytTitle,
-            is_embed_fallback: true,
-            qualities: [{
-              label: 'Auto',
-              type: 'embed',
-              video_url: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1`
-            }],
-            default_quality_index: 0
-          };
-        } else {
-          throw new Error(data.detail || data.error || 'Failed to extract video stream.');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.success || data.qualities?.length || data.entries?.length)) {
+            finalData = data;
+          }
         }
+      } catch (netErr) {
+        console.warn('Local server unreachable, attempting client-side playback:', netErr);
+      }
+
+      // Check if YouTube needs embed fallback
+      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
+      if (finalData && isYouTubeUrl && (!finalData.qualities?.length || (finalData.qualities?.length === 1 && finalData.qualities[0].label === 'Direct'))) {
+        finalData = null; // Let client-side embed handle YouTube cleanly
+      }
+
+      // If backend was unreachable or returned incomplete data, resolve client-side
+      if (!finalData) {
+        finalData = resolveMediaClientSide(rawUrl);
+      }
+
+      if (!finalData) {
+        throw new Error('Could not stream media. Make sure local PVP server is active on ' + (API_BASE || '127.0.0.1:8000') + ' or enter a direct video link.');
       }
 
       // Close modal immediately upon valid response
@@ -432,32 +516,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showVideoLoader(`Loading track ${index + 1}: ${track.title}...`);
     try {
-      const res = await fetch(API_BASE + '/api/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: track.url })
-      });
-      const data = await res.json();
-      let finalData = data;
-      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(track.url);
-      if (!res.ok || (!data.success && !data.qualities?.length) || (data.qualities?.length === 1 && data.qualities[0].label === 'Direct' && isYouTubeUrl)) {
-        if (isYouTubeUrl) {
-          const ytId = isYouTubeUrl[1];
-          finalData = {
-            success: true,
-            title: track.title,
-            is_embed_fallback: true,
-            qualities: [{
-              label: 'Auto',
-              type: 'embed',
-              video_url: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1`
-            }],
-            default_quality_index: 0
-          };
+      let finalData = null;
+      try {
+        const timeoutController = new AbortController();
+        const timeoutId = setTimeout(() => timeoutController.abort(), 6000);
+        const res = await fetch(API_BASE + '/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: track.url }),
+          signal: timeoutController.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.success || data.qualities?.length)) {
+            finalData = data;
+          }
         }
+      } catch (_) {}
+
+      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(track.url);
+      if (finalData && isYouTubeUrl && (!finalData.qualities?.length || (finalData.qualities?.length === 1 && finalData.qualities[0].label === 'Direct'))) {
+        finalData = null;
       }
-      track.data = finalData;
-      loadVideoData(finalData);
+
+      if (!finalData) {
+        finalData = resolveMediaClientSide(track.url, track.title);
+      }
+
+      if (finalData) {
+        track.data = finalData;
+        loadVideoData(finalData);
+      } else {
+        throw new Error('Track extraction failed');
+      }
     } catch (e) {
       console.error(e);
       hideVideoLoader();
@@ -1438,6 +1531,75 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   menuAbout.addEventListener('click', () => {
-    alert('PVP (Personal Video Player)\nUniversal Ad-Free Streaming Player\nBuilt with FastAPI & yt-dlp');
+    alert('PVP (Personal Video Player)\nUniversal 100% Local Ad-Free Media Player\nAuthentic VLC Media Player interface with zero cloud dependencies.');
   });
+
+  // Local Server & Network Settings Modal (Tools -> Local Server Settings)
+  const menuServerSettings = document.getElementById('menuServerSettings');
+  const serverModal = document.getElementById('serverModal');
+  const btnServerModalClose = document.getElementById('btnServerModalClose');
+  const localServerInput = document.getElementById('localServerInput');
+  const serverStatusBadge = document.getElementById('serverStatusBadge');
+  const btnServerReset = document.getElementById('btnServerReset');
+  const btnServerSave = document.getElementById('btnServerSave');
+
+  if (menuServerSettings && serverModal) {
+    async function checkServerStatus(url) {
+      if (!serverStatusBadge) return;
+      serverStatusBadge.textContent = 'Checking server status...';
+      serverStatusBadge.style.color = '#ff9900';
+      serverStatusBadge.style.background = 'rgba(255,136,0,0.15)';
+      serverStatusBadge.style.borderColor = 'rgba(255,136,0,0.3)';
+      try {
+        const pingUrl = (url ? url.replace(/\/+$/, '') : 'http://127.0.0.1:8000') + '/api/history';
+        const timeoutController = new AbortController();
+        const tid = setTimeout(() => timeoutController.abort(), 2500);
+        const res = await fetch(pingUrl, { signal: timeoutController.signal });
+        clearTimeout(tid);
+        if (res.ok) {
+          serverStatusBadge.textContent = '● Connected: Local PVP Server is active (' + pingUrl.replace('/api/history', '') + ')';
+          serverStatusBadge.style.color = '#3ddc84';
+          serverStatusBadge.style.background = 'rgba(61,220,132,0.15)';
+          serverStatusBadge.style.borderColor = 'rgba(61,220,132,0.3)';
+          return;
+        }
+      } catch (_) {}
+      serverStatusBadge.textContent = '○ Standalone Mode: Direct native streams & embeds active';
+      serverStatusBadge.style.color = '#ffaa00';
+      serverStatusBadge.style.background = 'rgba(255,170,0,0.15)';
+      serverStatusBadge.style.borderColor = 'rgba(255,170,0,0.3)';
+    }
+
+    menuServerSettings.addEventListener('click', () => {
+      closeAllMenus();
+      const current = localStorage.getItem('pvp_local_server_url') || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : window.location.origin);
+      if (localServerInput) localServerInput.value = current;
+      serverModal.classList.remove('hidden');
+      checkServerStatus(current);
+    });
+
+    btnServerModalClose?.addEventListener('click', () => {
+      serverModal.classList.add('hidden');
+    });
+
+    btnServerReset?.addEventListener('click', () => {
+      localStorage.removeItem('pvp_local_server_url');
+      const def = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+      if (localServerInput) localServerInput.value = 'http://127.0.0.1:8000';
+      API_BASE = def;
+      checkServerStatus(API_BASE);
+    });
+
+    btnServerSave?.addEventListener('click', () => {
+      const val = (localServerInput?.value || '').trim().replace(/\/+$/, '');
+      if (val) {
+        localStorage.setItem('pvp_local_server_url', val);
+        API_BASE = val;
+      } else {
+        localStorage.removeItem('pvp_local_server_url');
+        API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+      }
+      serverModal.classList.add('hidden');
+    });
+  }
 });

@@ -147,6 +147,18 @@ def clear_history():
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+@app.get("/style.css")
+def get_style():
+    return FileResponse(str(STATIC_DIR / "style.css"), media_type="text/css")
+
+@app.get("/app.js")
+def get_app_js():
+    return FileResponse(str(STATIC_DIR / "app.js"), media_type="application/javascript")
+
+@app.get("/hls.min.js")
+def get_hls_js():
+    return FileResponse(str(STATIC_DIR / "hls.min.js"), media_type="application/javascript")
+
 @app.get("/")
 @app.head("/")
 def index():
