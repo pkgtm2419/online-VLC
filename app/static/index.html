@@ -50,9 +50,32 @@
         </div>
         <div class="menu-item" id="menuAudio">Audio
           <div class="dropdown-menu">
+            <div class="dropdown-header">Audio Track</div>
+            <div id="menuAudioTracksList">
+              <div class="dropdown-item active" data-track="-1">Default</div>
+            </div>
+            <div class="dropdown-separator"></div>
+            <div class="dropdown-item" id="menuCycleAudio">Cycle Audio Track <span>B</span></div>
+            <div class="dropdown-separator"></div>
             <div class="dropdown-item" id="menuMute">Mute <span>M</span></div>
             <div class="dropdown-item" id="menuVolUp">Volume Up <span>Ctrl+Up</span></div>
             <div class="dropdown-item" id="menuVolDown">Volume Down <span>Ctrl+Down</span></div>
+          </div>
+        </div>
+        <div class="menu-item" id="menuSubtitle">Subtitle
+          <div class="dropdown-menu">
+            <div class="dropdown-item" id="menuAddSubtitleFile">Add Subtitle File...</div>
+            <div class="dropdown-separator"></div>
+            <div class="dropdown-header">Sub Track</div>
+            <div id="menuSubtitleTracksList">
+              <div class="dropdown-item active" data-sub="-1">Disable</div>
+            </div>
+            <div class="dropdown-separator"></div>
+            <div class="dropdown-item" id="menuCycleSubtitle">Cycle Subtitle Track <span>V</span></div>
+            <div class="dropdown-item" id="menuSubDelayDown">Subtitle Delay -50ms <span>G</span></div>
+            <div class="dropdown-item" id="menuSubDelayUp">Subtitle Delay +50ms <span>H</span></div>
+            <div class="dropdown-separator"></div>
+            <div class="dropdown-item" id="menuSubtitleSettings">Subtitle Settings...</div>
           </div>
         </div>
         <div class="menu-item" id="menuVideo">Video
@@ -131,6 +154,12 @@
         allow="autoplay; fullscreen; encrypted-media; picture-in-picture" 
         allowfullscreen
       ></iframe>
+
+      <!-- VLC Subtitle Display Overlay (Realtime SRT/VTT with custom styling) -->
+      <div id="vlcSubtitleOverlay" class="vlc-subtitle-overlay hidden"></div>
+
+      <!-- VLC Authentic On-Screen Display (OSD) Notification -->
+      <div id="vlcOsd" class="vlc-osd hidden"></div>
 
       <!-- Video Loading Spinner -->
       <div id="videoLoader" class="vlc-loader hidden">
@@ -271,6 +300,31 @@
             <button id="btnSpeedUp" class="speed-step-btn" title="Faster (])">&plus;</button>
           </div>
 
+          <!-- Audio Language Selector (B) -->
+          <div class="audio-track-widget" title="Audio Language / Track (B)">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+            </svg>
+            <select id="audioTrackSelect" class="vlc-select" title="Audio Track (B)">
+              <option value="-1">Audio: Default</option>
+            </select>
+          </div>
+
+          <!-- Subtitle Selector & Settings (V) -->
+          <div class="subtitle-widget" title="Subtitles (V)">
+            <button id="btnSubtitles" class="vlc-ctrl-btn sub-toggle-btn" title="Subtitle Settings & Delay">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                <path d="M7 15h4M15 15h2M7 11h2M13 11h4"></path>
+              </svg>
+              <span class="btn-subtext">CC</span>
+            </button>
+            <select id="subtitleSelect" class="vlc-select" title="Subtitle Track">
+              <option value="-1">Sub: Off</option>
+            </select>
+          </div>
+
           <!-- Quality Selector -->
           <div class="quality-widget">
             <select id="qualitySelect" class="vlc-select" title="Stream Quality"></select>
@@ -344,6 +398,119 @@
           <span id="modalBtnText">Stream</span>
           <div id="modalSpinner" class="vlc-spinner-sm hidden"></div>
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hidden file input for loading external subtitles (.srt, .vtt) -->
+  <input type="file" id="subFileInput" accept=".srt,.vtt,.ass,.ssa" class="hidden">
+
+  <!-- 5. VLC "Subtitle & Audio Track Settings" Modal -->
+  <div id="subSettingsModal" class="vlc-modal-overlay hidden">
+    <div class="vlc-modal sub-settings-modal">
+      <div class="modal-titlebar">
+        <div class="modal-titlebar-left">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff7f00" stroke-width="2">
+            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+            <path d="M7 15h4M15 15h2M7 11h2M13 11h4"></path>
+          </svg>
+          <span>Subtitle & Audio Track Settings</span>
+        </div>
+        <button id="btnSubSettingsClose" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body sub-settings-body">
+        <!-- Audio Track Selection Section -->
+        <div class="setting-group">
+          <label class="setting-label">Audio Track / Language:</label>
+          <div class="setting-row">
+            <select id="modalAudioSelect" class="vlc-dialog-select"></select>
+            <button id="btnModalCycleAudio" class="vlc-dialog-btn" title="Cycle Track (B)">Cycle (B)</button>
+          </div>
+        </div>
+
+        <!-- Subtitle Track Selection Section -->
+        <div class="setting-group">
+          <label class="setting-label">Subtitle Track / Language:</label>
+          <div class="setting-row">
+            <select id="modalSubSelect" class="vlc-dialog-select"></select>
+            <button id="btnModalCycleSub" class="vlc-dialog-btn" title="Cycle Subtitle (V)">Cycle (V)</button>
+          </div>
+        </div>
+
+        <!-- Add Subtitle File Section -->
+        <div class="setting-group">
+          <label class="setting-label">External Subtitle File (.srt / .vtt):</label>
+          <div class="setting-row">
+            <button id="btnBrowseSub" class="vlc-dialog-btn btn-primary-vlc">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              <span>Load Subtitle File...</span>
+            </button>
+            <span id="subFileName" class="sub-file-label">No custom file loaded</span>
+          </div>
+        </div>
+
+        <!-- Subtitle Synchronization / Delay Section -->
+        <div class="setting-group">
+          <div class="setting-label-row">
+            <label class="setting-label">Subtitle Delay (Sync):</label>
+            <span id="subDelayDisplay" class="sub-val-badge">0 ms</span>
+          </div>
+          <div class="sync-slider-row">
+            <button id="btnSubDelayMinus" class="speed-step-btn" title="-50ms (G)">&minus;50ms</button>
+            <input type="range" id="subDelaySlider" min="-5000" max="5000" step="50" value="0" class="sub-slider">
+            <button id="btnSubDelayPlus" class="speed-step-btn" title="+50ms (H)">&plus;50ms</button>
+            <button id="btnSubDelayReset" class="vlc-dialog-btn" title="Reset to 0ms">Reset</button>
+          </div>
+        </div>
+
+        <!-- Subtitle Style & Appearance Section -->
+        <div class="setting-group">
+          <label class="setting-label">Subtitle Appearance:</label>
+          <div class="style-controls-grid">
+            <div class="style-item">
+              <span>Size:</span>
+              <select id="subSizeSelect" class="vlc-dialog-select">
+                <option value="16px">Small (16px)</option>
+                <option value="22px" selected>Normal (22px)</option>
+                <option value="28px">Large (28px)</option>
+                <option value="36px">Extra Large (36px)</option>
+              </select>
+            </div>
+            <div class="style-item">
+              <span>Color:</span>
+              <select id="subColorSelect" class="vlc-dialog-select">
+                <option value="#ffffff" selected>White</option>
+                <option value="#ffe600">Yellow (VLC)</option>
+                <option value="#00e5ff">Cyan</option>
+                <option value="#00ff66">Green</option>
+              </select>
+            </div>
+            <div class="style-item">
+              <span>Background:</span>
+              <select id="subBgSelect" class="vlc-dialog-select">
+                <option value="rgba(0,0,0,0.75)" selected>Translucent Black</option>
+                <option value="rgba(0,0,0,0.95)">Solid Black</option>
+                <option value="transparent">None (Outline only)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subtitle Live Preview Box -->
+        <div class="sub-preview-container">
+          <div class="sub-preview-box" id="subPreviewBox">
+            <span id="subPreviewText">Demon Slayer: Infinity Castle — English Subtitle Preview</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btnSubSettingsClose2" class="vlc-dialog-btn btn-primary-vlc">Done</button>
       </div>
     </div>
   </div>

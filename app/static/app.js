@@ -87,6 +87,45 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnModalClose = document.getElementById('btnModalClose');
   const modalError = document.getElementById('modalError');
 
+  // Audio & Subtitle Controls & OSD
+  const audioTrackSelect = document.getElementById('audioTrackSelect');
+  const btnSubtitles = document.getElementById('btnSubtitles');
+  const subtitleSelect = document.getElementById('subtitleSelect');
+  const vlcSubtitleOverlay = document.getElementById('vlcSubtitleOverlay');
+  const vlcOsd = document.getElementById('vlcOsd');
+  const subFileInput = document.getElementById('subFileInput');
+
+  // Menubar Audio & Subtitle elements
+  const menuAudioTracksList = document.getElementById('menuAudioTracksList');
+  const menuCycleAudio = document.getElementById('menuCycleAudio');
+  const menuAddSubtitleFile = document.getElementById('menuAddSubtitleFile');
+  const menuSubtitleTracksList = document.getElementById('menuSubtitleTracksList');
+  const menuCycleSubtitle = document.getElementById('menuCycleSubtitle');
+  const menuSubDelayDown = document.getElementById('menuSubDelayDown');
+  const menuSubDelayUp = document.getElementById('menuSubDelayUp');
+  const menuSubtitleSettings = document.getElementById('menuSubtitleSettings');
+
+  // Subtitle Settings Modal Elements
+  const subSettingsModal = document.getElementById('subSettingsModal');
+  const btnSubSettingsClose = document.getElementById('btnSubSettingsClose');
+  const btnSubSettingsClose2 = document.getElementById('btnSubSettingsClose2');
+  const modalAudioSelect = document.getElementById('modalAudioSelect');
+  const btnModalCycleAudio = document.getElementById('btnModalCycleAudio');
+  const modalSubSelect = document.getElementById('modalSubSelect');
+  const btnModalCycleSub = document.getElementById('btnModalCycleSub');
+  const btnBrowseSub = document.getElementById('btnBrowseSub');
+  const subFileName = document.getElementById('subFileName');
+  const subDelayDisplay = document.getElementById('subDelayDisplay');
+  const subDelaySlider = document.getElementById('subDelaySlider');
+  const btnSubDelayMinus = document.getElementById('btnSubDelayMinus');
+  const btnSubDelayPlus = document.getElementById('btnSubDelayPlus');
+  const btnSubDelayReset = document.getElementById('btnSubDelayReset');
+  const subSizeSelect = document.getElementById('subSizeSelect');
+  const subColorSelect = document.getElementById('subColorSelect');
+  const subBgSelect = document.getElementById('subBgSelect');
+  const subPreviewBox = document.getElementById('subPreviewBox');
+  const subPreviewText = document.getElementById('subPreviewText');
+
   // State Management
   let hlsInstance = null;
   let currentPlaylist = [];
@@ -100,6 +139,15 @@ document.addEventListener('DOMContentLoaded', () => {
   let loopMode = 'off'; // 'off' | 'all' | 'one'
   let currentPlaybackRate = 1.0;
   let fullscreenHideTimer = null;
+
+  // Audio & Subtitle State
+  let availableAudioTracks = [];
+  let currentAudioTrack = -1;
+  let availableSubTracks = [];
+  let currentSubTrack = -1;
+  let customSubtitles = [];
+  let subtitleDelayMs = 0;
+  let osdTimer = null;
 
   // 1. Initial State: Open Network Stream Modal automatically on page load
   openStreamModal();
@@ -451,8 +499,16 @@ document.addEventListener('DOMContentLoaded', () => {
         hlsInstance.loadSource(q.video_url);
         hlsInstance.attachMedia(videoPlayer);
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+          updateAudioTracksFromHls();
+          updateSubtitleTracksFromHls();
           if (startTime > 0) videoPlayer.currentTime = startTime;
           triggerAutoplay();
+        });
+        hlsInstance.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => {
+          updateAudioTracksFromHls();
+        });
+        hlsInstance.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
+          updateSubtitleTracksFromHls();
         });
       } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
         videoPlayer.src = q.video_url;
@@ -492,6 +548,314 @@ document.addEventListener('DOMContentLoaded', () => {
     const cur = videoPlayer.currentTime + currentStreamSeekOffset;
     loadStreamQuality(idx, cur);
   });
+
+  // =========================================================================
+  // VLC Authentic On-Screen Display (OSD) Notification
+  // =========================================================================
+  function showVlcOsd(text) {
+    if (!vlcOsd) return;
+    vlcOsd.textContent = text;
+    vlcOsd.classList.remove('hidden');
+    vlcOsd.style.opacity = '1';
+    clearTimeout(osdTimer);
+    osdTimer = setTimeout(() => {
+      vlcOsd.style.opacity = '0';
+      setTimeout(() => vlcOsd.classList.add('hidden'), 350);
+    }, 2200);
+  }
+
+  // =========================================================================
+  // Audio Track Switching (HLS & Multi-track Streams)
+  // =========================================================================
+  function updateAudioTracksFromHls() {
+    if (!hlsInstance) return;
+    availableAudioTracks = hlsInstance.audioTracks || [];
+    currentAudioTrack = hlsInstance.audioTrack;
+
+    // 1. Toolbar Select
+    audioTrackSelect.innerHTML = '';
+    if (availableAudioTracks.length === 0) {
+      const opt = document.createElement('option');
+      opt.value = -1;
+      opt.textContent = 'Audio: Default';
+      audioTrackSelect.appendChild(opt);
+    } else {
+      availableAudioTracks.forEach((t, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        const langName = t.name || t.lang || `Track ${idx + 1}`;
+        opt.textContent = `Audio: ${langName}`;
+        if (idx === currentAudioTrack) opt.selected = true;
+        audioTrackSelect.appendChild(opt);
+      });
+    }
+
+    // 2. Modal Select
+    modalAudioSelect.innerHTML = audioTrackSelect.innerHTML;
+
+    // 3. Menubar Dropdown
+    menuAudioTracksList.innerHTML = '';
+    if (availableAudioTracks.length === 0) {
+      const item = document.createElement('div');
+      item.className = 'dropdown-item active';
+      item.textContent = 'Default Track';
+      menuAudioTracksList.appendChild(item);
+    } else {
+      availableAudioTracks.forEach((t, idx) => {
+        const item = document.createElement('div');
+        item.className = `dropdown-item ${idx === currentAudioTrack ? 'active' : ''}`;
+        const langName = t.name || t.lang || `Track ${idx + 1}`;
+        item.innerHTML = `${langName} ${idx === currentAudioTrack ? '✓' : ''}`;
+        item.addEventListener('click', () => switchAudioTrack(idx));
+        menuAudioTracksList.appendChild(item);
+      });
+    }
+  }
+
+  function switchAudioTrack(idx) {
+    idx = parseInt(idx, 10);
+    if (!hlsInstance || availableAudioTracks.length === 0) return;
+    if (idx >= 0 && idx < availableAudioTracks.length) {
+      hlsInstance.audioTrack = idx;
+      currentAudioTrack = idx;
+      audioTrackSelect.value = idx;
+      modalAudioSelect.value = idx;
+      const t = availableAudioTracks[idx];
+      const langName = t.name || t.lang || `Track ${idx + 1}`;
+      showVlcOsd(`Audio track: ${langName}`);
+      updateAudioTracksFromHls();
+    }
+  }
+
+  function cycleAudioTrack() {
+    if (!hlsInstance || availableAudioTracks.length <= 1) return;
+    const nextIdx = (currentAudioTrack + 1) % availableAudioTracks.length;
+    switchAudioTrack(nextIdx);
+  }
+
+  audioTrackSelect.addEventListener('change', () => switchAudioTrack(audioTrackSelect.value));
+  modalAudioSelect.addEventListener('change', () => switchAudioTrack(modalAudioSelect.value));
+  btnModalCycleAudio.addEventListener('click', cycleAudioTrack);
+  menuCycleAudio.addEventListener('click', cycleAudioTrack);
+
+  // =========================================================================
+  // Subtitle Tracks & Settings
+  // =========================================================================
+  function updateSubtitleTracksFromHls() {
+    if (!hlsInstance) return;
+    availableSubTracks = hlsInstance.subtitleTracks || [];
+    currentSubTrack = hlsInstance.subtitleTrack;
+
+    // 1. Toolbar Select
+    subtitleSelect.innerHTML = '';
+    const offOpt = document.createElement('option');
+    offOpt.value = -1;
+    offOpt.textContent = 'Sub: Off';
+    subtitleSelect.appendChild(offOpt);
+
+    availableSubTracks.forEach((t, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx;
+      const langName = t.name || t.lang || `Track ${idx + 1}`;
+      opt.textContent = `Sub: ${langName}`;
+      if (idx === currentSubTrack) opt.selected = true;
+      subtitleSelect.appendChild(opt);
+    });
+
+    if (customSubtitles.length > 0) {
+      const customOpt = document.createElement('option');
+      customOpt.value = 'custom';
+      customOpt.textContent = 'Sub: Custom File';
+      if (currentSubTrack === 'custom') customOpt.selected = true;
+      subtitleSelect.appendChild(customOpt);
+    }
+
+    if (currentSubTrack === -1) offOpt.selected = true;
+
+    // 2. Modal Select
+    modalSubSelect.innerHTML = subtitleSelect.innerHTML;
+
+    // 3. Menubar Dropdown
+    menuSubtitleTracksList.innerHTML = '';
+    const offItem = document.createElement('div');
+    offItem.className = `dropdown-item ${currentSubTrack === -1 ? 'active' : ''}`;
+    offItem.innerHTML = `Disable ${currentSubTrack === -1 ? '✓' : ''}`;
+    offItem.addEventListener('click', () => switchSubtitleTrack(-1));
+    menuSubtitleTracksList.appendChild(offItem);
+
+    availableSubTracks.forEach((t, idx) => {
+      const item = document.createElement('div');
+      item.className = `dropdown-item ${idx === currentSubTrack ? 'active' : ''}`;
+      const langName = t.name || t.lang || `Track ${idx + 1}`;
+      item.innerHTML = `${langName} ${idx === currentSubTrack ? '✓' : ''}`;
+      item.addEventListener('click', () => switchSubtitleTrack(idx));
+      menuSubtitleTracksList.appendChild(item);
+    });
+
+    if (customSubtitles.length > 0) {
+      const customItem = document.createElement('div');
+      customItem.className = `dropdown-item ${currentSubTrack === 'custom' ? 'active' : ''}`;
+      customItem.innerHTML = `Custom File ${currentSubTrack === 'custom' ? '✓' : ''}`;
+      customItem.addEventListener('click', () => switchSubtitleTrack('custom'));
+      menuSubtitleTracksList.appendChild(customItem);
+    }
+
+    // Highlight CC button if active
+    if (currentSubTrack !== -1) {
+      btnSubtitles.classList.add('active');
+    } else {
+      btnSubtitles.classList.remove('active');
+    }
+  }
+
+  function switchSubtitleTrack(trackVal) {
+    if (trackVal === 'custom') {
+      currentSubTrack = 'custom';
+      if (hlsInstance) hlsInstance.subtitleTrack = -1;
+      showVlcOsd('Subtitle track: Custom file');
+    } else {
+      const idx = parseInt(trackVal, 10);
+      currentSubTrack = idx;
+      if (hlsInstance) {
+        hlsInstance.subtitleTrack = idx;
+      }
+      if (idx === -1) {
+        showVlcOsd('Subtitle track: Disable');
+        vlcSubtitleOverlay.classList.add('hidden');
+      } else if (availableSubTracks[idx]) {
+        const langName = availableSubTracks[idx].name || availableSubTracks[idx].lang || `Track ${idx + 1}`;
+        showVlcOsd(`Subtitle track: ${langName}`);
+      }
+    }
+    updateSubtitleTracksFromHls();
+  }
+
+  function cycleSubtitleTrack() {
+    let options = [-1];
+    for (let i = 0; i < availableSubTracks.length; i++) options.push(i);
+    if (customSubtitles.length > 0) options.push('custom');
+
+    const curPos = options.indexOf(currentSubTrack);
+    const nextPos = (curPos + 1) % options.length;
+    switchSubtitleTrack(options[nextPos]);
+  }
+
+  subtitleSelect.addEventListener('change', () => switchSubtitleTrack(subtitleSelect.value));
+  modalSubSelect.addEventListener('change', () => switchSubtitleTrack(modalSubSelect.value));
+  btnModalCycleSub.addEventListener('click', cycleSubtitleTrack);
+  menuCycleSubtitle.addEventListener('click', cycleSubtitleTrack);
+
+  // Subtitle Synchronization / Delay
+  function adjustSubtitleDelay(deltaMs) {
+    subtitleDelayMs += deltaMs;
+    subDelayDisplay.textContent = `${subtitleDelayMs >= 0 ? '+' : ''}${subtitleDelayMs} ms`;
+    subDelaySlider.value = subtitleDelayMs;
+    showVlcOsd(`Subtitle delay: ${subtitleDelayMs >= 0 ? '+' : ''}${subtitleDelayMs} ms`);
+  }
+
+  subDelaySlider.addEventListener('input', () => {
+    subtitleDelayMs = parseInt(subDelaySlider.value, 10);
+    subDelayDisplay.textContent = `${subtitleDelayMs >= 0 ? '+' : ''}${subtitleDelayMs} ms`;
+  });
+
+  btnSubDelayMinus.addEventListener('click', () => adjustSubtitleDelay(-50));
+  btnSubDelayPlus.addEventListener('click', () => adjustSubtitleDelay(50));
+  menuSubDelayDown.addEventListener('click', () => adjustSubtitleDelay(-50));
+  menuSubDelayUp.addEventListener('click', () => adjustSubtitleDelay(50));
+  btnSubDelayReset.addEventListener('click', () => {
+    subtitleDelayMs = 0;
+    subDelaySlider.value = 0;
+    subDelayDisplay.textContent = '0 ms';
+    showVlcOsd('Subtitle delay: 0 ms');
+  });
+
+  // External Subtitle File Loader (.srt / .vtt)
+  btnBrowseSub.addEventListener('click', () => subFileInput.click());
+  menuAddSubtitleFile.addEventListener('click', () => subFileInput.click());
+
+  subFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target.result;
+      customSubtitles = parseSrtOrVtt(content);
+      subFileName.textContent = `${file.name} (${customSubtitles.length} cues)`;
+      switchSubtitleTrack('custom');
+      showVlcOsd(`Loaded subtitles: ${file.name}`);
+    };
+    reader.readAsText(file);
+  });
+
+  // Subtitle Parser (SRT & WebVTT)
+  function parseSrtOrVtt(content) {
+    const text = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const blocks = text.trim().split(/\n\s*\n/);
+    const cues = [];
+
+    function timeToSeconds(timeStr) {
+      if (!timeStr) return 0;
+      timeStr = timeStr.trim().replace(',', '.');
+      const parts = timeStr.split(':');
+      if (parts.length === 3) {
+        return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
+      } else if (parts.length === 2) {
+        return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
+      }
+      return 0;
+    }
+
+    blocks.forEach(block => {
+      const lines = block.split('\n');
+      let timeLineIdx = -1;
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('-->')) {
+          timeLineIdx = i;
+          break;
+        }
+      }
+      if (timeLineIdx !== -1) {
+        const timeParts = lines[timeLineIdx].split('-->');
+        if (timeParts.length === 2) {
+          const start = timeToSeconds(timeParts[0]);
+          const end = timeToSeconds(timeParts[1]);
+          const cueText = lines.slice(timeLineIdx + 1).join('\n').replace(/<[^>]+>/g, '').trim();
+          if (cueText) {
+            cues.push({ start, end, text: cueText });
+          }
+        }
+      }
+    });
+
+    return cues;
+  }
+
+  // Subtitle Appearance Customization
+  subSizeSelect.addEventListener('change', () => {
+    document.documentElement.style.setProperty('--sub-font-size', subSizeSelect.value);
+  });
+  subColorSelect.addEventListener('change', () => {
+    document.documentElement.style.setProperty('--sub-color', subColorSelect.value);
+  });
+  subBgSelect.addEventListener('change', () => {
+    document.documentElement.style.setProperty('--sub-bg', subBgSelect.value);
+  });
+
+  // Subtitle Settings Modal Open/Close
+  function openSubSettingsModal() {
+    subSettingsModal.classList.remove('hidden');
+    updateAudioTracksFromHls();
+    updateSubtitleTracksFromHls();
+  }
+
+  function closeSubSettingsModal() {
+    subSettingsModal.classList.add('hidden');
+  }
+
+  btnSubtitles.addEventListener('click', openSubSettingsModal);
+  menuSubtitleSettings.addEventListener('click', openSubSettingsModal);
+  btnSubSettingsClose.addEventListener('click', closeSubSettingsModal);
+  btnSubSettingsClose2.addEventListener('click', closeSubSettingsModal);
 
   // Autoplay handler with audio policy fallback
   function triggerAutoplay() {
@@ -564,6 +928,19 @@ document.addEventListener('DOMContentLoaded', () => {
     timeTotal.textContent = '00:00:00';
     progressBar.style.width = '0%';
     seekSlider.value = 0;
+
+    // Reset Audio & Subtitle UI
+    availableAudioTracks = [];
+    currentAudioTrack = -1;
+    availableSubTracks = [];
+    currentSubTrack = -1;
+    vlcSubtitleOverlay.classList.add('hidden');
+    audioTrackSelect.innerHTML = '<option value="-1">Audio: Default</option>';
+    subtitleSelect.innerHTML = '<option value="-1">Sub: Off</option>';
+    modalAudioSelect.innerHTML = '<option value="-1">Audio: Default</option>';
+    modalSubSelect.innerHTML = '<option value="-1">Sub: Off</option>';
+    menuAudioTracksList.innerHTML = '<div class="dropdown-item active">Default</div>';
+    menuSubtitleTracksList.innerHTML = '<div class="dropdown-item active">Disable</div>';
   }
 
   btnStop.addEventListener('click', stopPlayback);
@@ -575,6 +952,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isSeeking) return;
 
     const cur = videoPlayer.currentTime + currentStreamSeekOffset;
+
+    // Custom Subtitle Rendering Loop
+    if (currentSubTrack === 'custom' && customSubtitles.length > 0) {
+      const curWithDelay = cur + (subtitleDelayMs / 1000);
+      const activeCue = customSubtitles.find(c => curWithDelay >= c.start && curWithDelay <= c.end);
+      if (activeCue) {
+        vlcSubtitleOverlay.textContent = activeCue.text;
+        vlcSubtitleOverlay.classList.remove('hidden');
+      } else {
+        vlcSubtitleOverlay.classList.add('hidden');
+      }
+    } else if (currentSubTrack === -1) {
+      vlcSubtitleOverlay.classList.add('hidden');
+    }
+
     let dur = videoPlayer.duration;
     if (!isFinite(dur) || isNaN(dur) || dur <= 0) {
       dur = currentMediaDuration;
@@ -853,6 +1245,26 @@ document.addEventListener('DOMContentLoaded', () => {
       case '=':
         e.preventDefault();
         applyPlaybackSpeed(1.0);
+        break;
+      case 'b':
+      case 'B':
+        e.preventDefault();
+        cycleAudioTrack();
+        break;
+      case 'v':
+      case 'V':
+        e.preventDefault();
+        cycleSubtitleTrack();
+        break;
+      case 'g':
+      case 'G':
+        e.preventDefault();
+        adjustSubtitleDelay(-50);
+        break;
+      case 'h':
+      case 'H':
+        e.preventDefault();
+        adjustSubtitleDelay(50);
         break;
       case 'ArrowRight':
         e.preventDefault();
