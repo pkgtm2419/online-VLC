@@ -10,22 +10,19 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.webkit.*
+import android.widget.FrameLayout
 import android.widget.ProgressBar
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
-import java.net.URL
+import androidx.webkit.WebViewAssetLoader
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
+    private lateinit var assetLoader: WebViewAssetLoader
+    private var customView: View? = null
+    private var customViewCallback: WebChromeClient.CustomViewCallback? = null
     private var pendingUrl: String? = null
     private var isAppReady = false
     private var lastCheckedClip = ""
@@ -39,13 +36,18 @@ class MainActivity : AppCompatActivity() {
         webView = findViewById(R.id.webView)
         progressBar = findViewById(R.id.progressBar)
 
+        // Initialize WebViewAssetLoader for secure HTTPS local asset serving (Fixes YouTube embed Error 153)
+        assetLoader = WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
+            .build()
+
         setupFullscreen()
         setupWebView()
 
         // Handle incoming video share intent (from YouTube, Instagram, etc.)
         handleIntent(intent)
 
-        // Load the VLC Player
+        // Load the Player
         loadPlayer()
     }
 
@@ -69,7 +71,7 @@ class MainActivity : AppCompatActivity() {
                 if (text != null && (text.startsWith("http://") || text.startsWith("https://")) && text != lastCheckedClip) {
                     lastCheckedClip = text
                     webView.post {
-                        webView.evaluateJavascript("if (typeof checkClipboardForVideoUrl === 'function') checkClipboardForVideoUrl();", null)
+                        webView.evaluateJavascript("if (typeof checkClipboardForVideo === 'function') checkClipboardForVideo();", null)
                     }
                 }
             }
@@ -124,13 +126,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadPlayer() {
         progressBar.visibility = View.VISIBLE
-        // Load the embedded VLC single-page web app
-        val targetUrl = "file:///android_asset/www/index.html"
+        // Load via secure HTTPS virtual domain provided by WebViewAssetLoader
+        // This grants the page a genuine HTTPS origin (https://appassets.androidplatform.net),
+        // resolving YouTube Error 153 and referrer restrictions.
+        val targetUrl = "https://appassets.androidplatform.net/assets/www/index.html"
         webView.loadUrl(targetUrl)
     }
 
     fun loadUrlInPlayer(videoUrl: String) {
-        // Safe JSON encoding to completely eliminate Javascript injection risks
         val safeJsonUrl = org.json.JSONObject.quote(videoUrl)
         val script = "if (typeof window.playVideoUrl === 'function') { " +
                 "window.playVideoUrl($safeJsonUrl); " +
@@ -181,12 +184,11 @@ class MainActivity : AppCompatActivity() {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
+            databaseEnabled = true
             mediaPlaybackRequiresUserGesture = false
-            allowFileAccess = true // Required for local assets: file:///android_asset/www/
-            allowContentAccess = false // Prevent content provider data leakage
-            allowFileAccessFromFileURLs = false // Prevent JS from accessing arbitrary local storage
-            allowUniversalAccessFromFileURLs = false // Prevent cross-origin access from file URLs
-            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+            allowFileAccess = true
+            allowContentAccess = true
+            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             cacheMode = WebSettings.LOAD_DEFAULT
             setSupportMultipleWindows(false)
             useWideViewPort = true
@@ -194,13 +196,29 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest?
+            ): WebResourceResponse? {
+                val url = request?.url ?: return null
+                return assetLoader.shouldInterceptRequest(url)
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                val url = request?.url?.toString() ?: return false
-                // Allow local assets and local server
-                if (url.startsWith("file:///android_asset/") || url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost")) {
+                if (request == null) return false
+                // CRUCIAL: Do not intercept iframe or subframe requests (e.g. YouTube embed player)
+                if (!request.isForMainFrame) {
                     return false
                 }
-                // Open external links safely in system browser to prevent hijacking player WebView
+                val url = request.url.toString()
+                // Allow local assets and local server
+                if (url.startsWith("https://appassets.androidplatform.net/") ||
+                    url.startsWith("file:///android_asset/") ||
+                    url.startsWith("http://127.0.0.1") ||
+                    url.startsWith("http://localhost")) {
+                    return false
+                }
+                // Open external links clicked in top-level window safely in system browser
                 try {
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                     startActivity(intent)
@@ -234,6 +252,35 @@ class MainActivity : AppCompatActivity() {
                     progressBar.visibility = View.GONE
                 }
             }
+
+            override fun onShowCustomView(view: View?, callback: CustomViewCallback?) {
+                super.onShowCustomView(view, callback)
+                if (customView != null) {
+                    onHideCustomView()
+                    return
+                }
+                customView = view
+                customViewCallback = callback
+                (window.decorView as? FrameLayout)?.addView(
+                    customView,
+                    FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT
+                    )
+                )
+                webView.visibility = View.GONE
+                setupFullscreen()
+            }
+
+            override fun onHideCustomView() {
+                super.onHideCustomView()
+                if (customView == null) return
+                (window.decorView as? FrameLayout)?.removeView(customView)
+                customView = null
+                customViewCallback?.onCustomViewHidden()
+                webView.visibility = View.VISIBLE
+                restoreSystemBars()
+            }
         }
 
         // Add JavaScript interface for native Android features
@@ -242,6 +289,15 @@ class MainActivity : AppCompatActivity() {
 
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
+        if (customView != null) {
+            customViewCallback?.onCustomViewHidden()
+            (window.decorView as? FrameLayout)?.removeView(customView)
+            customView = null
+            webView.visibility = View.VISIBLE
+            restoreSystemBars()
+            return
+        }
+
         webView.evaluateJavascript("(function(){ return typeof window.handleAndroidBack === 'function' ? window.handleAndroidBack() : false; })()") { res ->
             val handled = res != null && (res == "true" || res.contains("true"))
             if (!handled) {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>PVP Mobile</title>
-  <meta name="referrer" content="no-referrer">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <link rel="stylesheet" href="style.css">
   <script src="hls.min.js"></script>
 </head>
@@ -194,12 +194,13 @@
           preload="auto"
         ></video>
 
-        <!-- Embed Frame Fallback -->
+        <!-- Embed Frame Fallback (YouTube, Vimeo, Dailymotion) -->
         <iframe 
           id="embedFrame" 
           class="embed-video hidden" 
           frameborder="0" 
-          allow="autoplay; fullscreen; encrypted-media; picture-in-picture" 
+          referrerpolicy="strict-origin-when-cross-origin"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
           allowfullscreen
         ></iframe>
 

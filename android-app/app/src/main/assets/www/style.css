@@ -638,6 +638,41 @@ html, body {
   background: #000;
 }
 
+.embed-video {
+  border: none;
+  position: relative;
+  z-index: 10;
+}
+
+/* In Embed Mode: let all touches pass directly to YouTube player and hide duplicate center controls */
+.player-canvas.embed-active .gesture-surface {
+  pointer-events: none !important;
+}
+
+.player-canvas.embed-active .hud-center-controls {
+  display: none !important;
+}
+
+.player-canvas.embed-active .scrubber-row {
+  display: none !important;
+}
+
+.player-canvas.embed-active #btnAudioSheet,
+.player-canvas.embed-active #btnSubSheet,
+.player-canvas.embed-active #btnSpeedSheet {
+  display: none !important;
+}
+
+.player-canvas.embed-active .player-hud {
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 22%, transparent 78%, rgba(0,0,0,0.85) 100%);
+}
+
+.player-canvas.embed-active .hud-top-bar,
+.player-canvas.embed-active .hud-bottom-bar {
+  pointer-events: auto;
+}
+
 .subtitle-overlay {
   position: absolute;
   bottom: 84px;

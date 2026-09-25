@@ -364,6 +364,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const isYouTube = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
     if (isYouTube) {
       const ytId = isYouTube[1];
+      const ytOrigin = (window.location.origin && !window.location.origin.startsWith('file:') && window.location.origin !== 'null')
+        ? window.location.origin
+        : 'https://appassets.androidplatform.net';
       return {
         success: true,
         title: fallbackTitle || 'YouTube Video',
@@ -371,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         qualities: [{
           label: 'Auto (Embed)',
           type: 'embed',
-          video_url: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&rel=0&modestbranding=1`
+          video_url: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}&widget_referrer=${encodeURIComponent(ytOrigin)}&rel=0&playsinline=1`
         }],
         default_quality_index: 0
       };
@@ -508,15 +511,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (quality.type === 'embed' || data.is_embed_fallback) {
       // Embed mode (YouTube iframe)
       videoPlayer.classList.add('hidden');
+      videoPlayer.pause();
+      playerCanvas.classList.add('embed-active');
       embedFrame.src = quality.video_url;
       embedFrame.classList.remove('hidden');
       hidePlayerLoader();
       updatePlayPauseButton(true);
-      showOsd('Streaming in Privacy Embed Mode');
+      showOsd('Streaming YouTube Embed');
       return;
     }
 
     // Direct / HLS mode
+    playerCanvas.classList.remove('embed-active');
     embedFrame.classList.add('hidden');
     embedFrame.src = '';
     videoPlayer.classList.remove('hidden');
@@ -566,6 +572,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function resetPlayerState() {
+    playerCanvas.classList.remove('embed-active');
     videoPlayer.pause();
     videoPlayer.currentTime = 0;
     progressBar.style.width = '0%';
@@ -578,6 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function stopPlayback() {
+    playerCanvas.classList.remove('embed-active');
     if (hlsInstance) {
       hlsInstance.destroy();
       hlsInstance = null;
