@@ -16,7 +16,7 @@
   <div class="vlc-window" id="vlcWindow">
 
     <!-- 1. Top Menu Bar (VLC Style) -->
-    <header class="vlc-menubar">
+    <header class="vlc-menubar" id="vlcMenubar">
       <div class="menubar-left">
         <!-- VLC Traffic Cone Icon -->
         <div class="vlc-logo-icon" title="PVP - Personal Video Player">
@@ -78,7 +78,17 @@
             <div class="dropdown-item" id="menuAbout">About PVP</div>
           </div>
         </div>
+
+        <!-- Direct Button to Open URL Popup Modal directly from Menu Bar -->
+        <button id="btnMenuBarStream" class="menubar-direct-btn" title="Open Network Stream (Ctrl+N)">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Open URL</span>
+        </button>
       </div>
+
       <div class="menubar-title" id="windowTitle">PVP (Personal Video Player)</div>
     </header>
 
@@ -141,9 +151,7 @@
           <span class="col-title">Title</span>
           <span class="col-dur">Duration</span>
         </div>
-        <div id="playlistItems" class="playlist-items-list">
-          <!-- Rendered dynamically -->
-        </div>
+        <div id="playlistItems" class="playlist-items-list"></div>
       </aside>
 
       <!-- Unmute Hint Banner (if browser blocked unmuted autoplay) -->
@@ -153,8 +161,8 @@
       </div>
     </main>
 
-    <!-- 3. Bottom Control Toolbar (Authentic VLC Media Player Controls) -->
-    <footer class="vlc-controls">
+    <!-- 3. Bottom Control Toolbar (Authentic VLC Media Controls) -->
+    <footer class="vlc-controls" id="vlcControls">
       <!-- Row 1: Seek / Progress Bar & Time Displays -->
       <div class="seek-row">
         <span id="timeElapsed" class="time-label" title="Elapsed Time">00:00:00</span>
@@ -298,7 +306,7 @@
       </div>
 
       <div class="modal-tabs">
-        <div class="modal-tab active">🌐 Network</div>
+        <div class="modal-tab active">🌐 Network Stream</div>
       </div>
 
       <div class="modal-body">

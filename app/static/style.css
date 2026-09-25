@@ -804,3 +804,68 @@ html, body {
 .hidden {
   display: none !important;
 }
+
+/* ==========================================================================
+   Fullscreen Mode (Authentic VLC Fullscreen Behavior)
+   - Header is hidden
+   - Controls float over video and auto-hide after 5 seconds of inactivity
+   - Cursor auto-hides after 5 seconds of inactivity
+   ========================================================================== */
+.vlc-window.fullscreen-mode .vlc-menubar {
+  display: none !important;
+}
+
+.vlc-window.fullscreen-mode .vlc-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(26, 28, 32, 0.94);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+.vlc-window.fullscreen-mode.controls-hidden .vlc-controls {
+  opacity: 0;
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.vlc-window.fullscreen-mode.hide-cursor,
+.vlc-window.fullscreen-mode.hide-cursor * {
+  cursor: none !important;
+}
+
+/* Menubar direct Open URL button */
+.menubar-direct-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(180deg, #ff8c1a 0%, #e65c00 100%);
+  border: 1px solid var(--vlc-orange-dark);
+  color: #fff;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-left: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: all 0.15s;
+}
+
+.menubar-direct-btn:hover {
+  background: linear-gradient(180deg, #ff9933 0%, #f06a00 100%);
+  transform: translateY(-1px);
+}
+
+.menubar-direct-btn:active {
+  transform: translateY(0);
+}

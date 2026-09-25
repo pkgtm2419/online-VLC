@@ -1,12 +1,14 @@
 /**
  * PVP (Personal Video Player) - Client Logic
- * Authentic VLC Media Player layout, shortcuts, playlist support, and guaranteed autoplay.
+ * Authentic VLC Media Player layout, shortcuts, playlist support,
+ * true VLC fullscreen mode with 5s cursor/footer autohide, and robust duration/seeking.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements - VLC Window & Menubar
   const vlcWindow = document.getElementById('vlcWindow');
   const windowTitle = document.getElementById('windowTitle');
+  const btnMenuBarStream = document.getElementById('btnMenuBarStream');
 
   // Menubar items
   const menuOpenStream = document.getElementById('menuOpenStream');
@@ -44,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnClosePlaylist = document.getElementById('btnClosePlaylist');
 
   // Bottom controls toolbar
+  const vlcControls = document.getElementById('vlcControls');
   const timeElapsed = document.getElementById('timeElapsed');
   const timeTotal = document.getElementById('timeTotal');
   const progressBar = document.getElementById('progressBar');
@@ -88,17 +91,18 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentPlaylist = [];
   let currentTrackIndex = -1;
   let currentQualities = [];
+  let currentQualityIndex = 0;
+  let currentMediaDuration = 0;
+  let currentStreamSeekOffset = 0;
+  let isSeeking = false;
   let showRemainingTime = false;
   let loopMode = 'off'; // 'off' | 'all' | 'one'
   let currentPlaybackRate = 1.0;
+  let fullscreenHideTimer = null;
 
   // 1. Initial State: Open Network Stream Modal automatically on page load
   openStreamModal();
-
-  // Focus modal input on load
-  setTimeout(() => {
-    urlModalInput.focus();
-  }, 200);
+  setTimeout(() => urlModalInput.focus(), 200);
 
   // Modal Open/Close Controls
   function openStreamModal() {
@@ -117,6 +121,9 @@ document.addEventListener('DOMContentLoaded', () => {
   btnQuickOpen.addEventListener('click', openStreamModal);
   btnOpenStreamBar.addEventListener('click', openStreamModal);
   menuOpenStream.addEventListener('click', openStreamModal);
+  if (btnMenuBarStream) {
+    btnMenuBarStream.addEventListener('click', openStreamModal);
+  }
 
   // Paste button inside modal
   btnModalPaste.addEventListener('click', async () => {
@@ -164,7 +171,7 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error(data.detail || data.error || 'Failed to extract video stream.');
       }
 
-      // Close modal immediately upon valid stream response
+      // Close modal immediately upon valid response
       closeStreamModal();
 
       if (data.is_playlist && data.entries && data.entries.length > 0) {
@@ -198,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
       title: entry.title,
       duration_str: entry.duration_str,
       url: entry.url,
-      data: idx === 0 ? data : null // first item data is already extracted
+      data: idx === 0 ? data : null
     }));
 
     currentTrackIndex = 0;
@@ -206,10 +213,8 @@ document.addEventListener('DOMContentLoaded', () => {
     playlistCount.textContent = `(${currentPlaylist.length} items)`;
 
     renderPlaylistUI();
-    // Open playlist panel automatically for playlists
     playlistPanel.classList.remove('hidden');
 
-    // Start playing track 1
     loadVideoData(data);
   }
 
@@ -245,7 +250,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Extract stream for this track
     showVideoLoader(`Loading track ${index + 1}: ${track.title}...`);
     try {
       const res = await fetch('/api/extract', {
@@ -267,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function playNextTrack() {
     if (currentPlaylist.length <= 1) {
       if (loopMode === 'one') {
-        videoPlayer.currentTime = 0;
+        seekToTime(0);
         videoPlayer.play();
       }
       return;
@@ -281,8 +285,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function playPrevTrack() {
-    if (videoPlayer.currentTime > 3) {
-      videoPlayer.currentTime = 0;
+    const cur = videoPlayer.currentTime + currentStreamSeekOffset;
+    if (cur > 3) {
+      seekToTime(0);
       return;
     }
     if (currentTrackIndex > 0) {
@@ -297,10 +302,9 @@ document.addEventListener('DOMContentLoaded', () => {
   menuNext.addEventListener('click', playNextTrack);
   menuPrev.addEventListener('click', playPrevTrack);
 
-  // Advance to next video on track end
   videoPlayer.addEventListener('ended', () => {
     if (loopMode === 'one') {
-      videoPlayer.currentTime = 0;
+      seekToTime(0);
       videoPlayer.play();
     } else {
       playNextTrack();
@@ -339,6 +343,16 @@ document.addEventListener('DOMContentLoaded', () => {
     videoPlayer.classList.remove('hidden');
     windowTitle.textContent = `${data.title || 'Video'} - PVP`;
 
+    // Extract exact duration from metadata
+    currentMediaDuration = (typeof data.duration === 'number' && data.duration > 0) ? data.duration : 0;
+    currentStreamSeekOffset = 0;
+
+    if (currentMediaDuration > 0) {
+      timeTotal.textContent = formatTime(currentMediaDuration);
+    } else {
+      timeTotal.textContent = data.duration_str || '00:00:00';
+    }
+
     currentQualities = data.qualities || [];
     qualitySelect.innerHTML = '';
 
@@ -349,16 +363,16 @@ document.addEventListener('DOMContentLoaded', () => {
       qualitySelect.appendChild(opt);
     });
 
-    const defaultIdx = data.default_quality_index ?? 0;
-    qualitySelect.value = defaultIdx;
+    currentQualityIndex = data.default_quality_index ?? 0;
+    qualitySelect.value = currentQualityIndex;
 
-    loadStreamQuality(defaultIdx, false);
+    loadStreamQuality(currentQualityIndex, 0);
   }
 
-  function loadStreamQuality(index, retainTime = false) {
+  function loadStreamQuality(index, startTime = 0) {
     if (!currentQualities || !currentQualities[index]) return;
+    currentQualityIndex = index;
     const q = currentQualities[index];
-    const prevTime = retainTime ? videoPlayer.currentTime : 0;
 
     if (hlsInstance) {
       hlsInstance.destroy();
@@ -368,26 +382,36 @@ document.addEventListener('DOMContentLoaded', () => {
     videoPlayer.autoplay = true;
 
     if (q.is_hls) {
+      currentStreamSeekOffset = 0;
       if (Hls.isSupported()) {
         hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
         hlsInstance.loadSource(q.video_url);
         hlsInstance.attachMedia(videoPlayer);
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-          if (retainTime && prevTime > 0) videoPlayer.currentTime = prevTime;
+          if (startTime > 0) videoPlayer.currentTime = startTime;
           triggerAutoplay();
         });
       } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
         videoPlayer.src = q.video_url;
-        if (retainTime && prevTime > 0) videoPlayer.currentTime = prevTime;
+        if (startTime > 0) videoPlayer.currentTime = startTime;
         triggerAutoplay();
       }
     } else {
-      const streamUrl = q.play_url || q.video_url;
+      // Direct stream or live muxed stream
+      let streamUrl = q.play_url || q.video_url;
+      if (q.type === 'mux' && startTime > 0) {
+        currentStreamSeekOffset = startTime;
+        const cleanBase = streamUrl.split('&start=')[0];
+        streamUrl = `${cleanBase}&start=${startTime}`;
+      } else {
+        currentStreamSeekOffset = 0;
+      }
+
       videoPlayer.src = streamUrl;
       videoPlayer.load();
 
-      if (retainTime && prevTime > 0) {
-        videoPlayer.currentTime = prevTime;
+      if (q.type !== 'mux' && startTime > 0) {
+        videoPlayer.currentTime = startTime;
       }
 
       videoPlayer.addEventListener('canplay', () => {
@@ -402,7 +426,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   qualitySelect.addEventListener('change', () => {
     const idx = parseInt(qualitySelect.value, 10);
-    loadStreamQuality(idx, true);
+    const cur = videoPlayer.currentTime + currentStreamSeekOffset;
+    loadStreamQuality(idx, cur);
   });
 
   // Autoplay handler with audio policy fallback
@@ -458,6 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function stopPlayback() {
     videoPlayer.pause();
     videoPlayer.currentTime = 0;
+    currentStreamSeekOffset = 0;
     if (hlsInstance) {
       hlsInstance.destroy();
       hlsInstance = null;
@@ -479,20 +505,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Time & Progress Slider Updates
   videoPlayer.addEventListener('timeupdate', () => {
-    if (isNaN(videoPlayer.duration)) return;
-    const cur = videoPlayer.currentTime;
-    const dur = videoPlayer.duration;
-    const pct = (cur / dur) * 100;
+    if (isSeeking) return;
 
-    progressBar.style.width = `${pct}%`;
-    seekSlider.value = pct;
+    const cur = videoPlayer.currentTime + currentStreamSeekOffset;
+    let dur = videoPlayer.duration;
+    if (!isFinite(dur) || isNaN(dur) || dur <= 0) {
+      dur = currentMediaDuration;
+    }
 
     timeElapsed.textContent = formatTime(cur);
 
-    if (showRemainingTime) {
-      timeTotal.textContent = `-${formatTime(Math.max(0, dur - cur))}`;
-    } else {
-      timeTotal.textContent = formatTime(dur);
+    if (dur > 0) {
+      const pct = Math.min(100, Math.max(0, (cur / dur) * 100));
+      progressBar.style.width = `${pct}%`;
+      seekSlider.value = pct;
+
+      if (showRemainingTime) {
+        timeTotal.textContent = `-${formatTime(Math.max(0, dur - cur))}`;
+      } else {
+        timeTotal.textContent = formatTime(dur);
+      }
     }
   });
 
@@ -501,17 +533,56 @@ document.addEventListener('DOMContentLoaded', () => {
     showRemainingTime = !showRemainingTime;
   });
 
-  // Seek Slider
+  // Unified Seek Logic
+  function seekToTime(targetTime) {
+    let dur = videoPlayer.duration;
+    if (!isFinite(dur) || isNaN(dur) || dur <= 0) {
+      dur = currentMediaDuration;
+    }
+    if (dur > 0) {
+      targetTime = Math.max(0, Math.min(dur, targetTime));
+    }
+
+    const q = currentQualities[currentQualityIndex];
+    if (q && q.type === 'mux') {
+      // For live muxed stream, reload stream with start parameter
+      loadStreamQuality(currentQualityIndex, targetTime);
+    } else {
+      videoPlayer.currentTime = targetTime;
+    }
+  }
+
+  // Seek Slider Events
+  seekSlider.addEventListener('mousedown', () => { isSeeking = true; });
+  seekSlider.addEventListener('touchstart', () => { isSeeking = true; });
+
   seekSlider.addEventListener('input', () => {
-    if (isNaN(videoPlayer.duration)) return;
-    const targetTime = (parseFloat(seekSlider.value) / 100) * videoPlayer.duration;
-    videoPlayer.currentTime = targetTime;
+    let dur = videoPlayer.duration;
+    if (!isFinite(dur) || isNaN(dur) || dur <= 0) {
+      dur = currentMediaDuration;
+    }
+    if (dur > 0) {
+      const targetTime = (parseFloat(seekSlider.value) / 100) * dur;
+      timeElapsed.textContent = formatTime(targetTime);
+      progressBar.style.width = `${seekSlider.value}%`;
+    }
+  });
+
+  seekSlider.addEventListener('change', () => {
+    isSeeking = false;
+    let dur = videoPlayer.duration;
+    if (!isFinite(dur) || isNaN(dur) || dur <= 0) {
+      dur = currentMediaDuration;
+    }
+    if (dur > 0) {
+      const targetTime = (parseFloat(seekSlider.value) / 100) * dur;
+      seekToTime(targetTime);
+    }
   });
 
   // Volume Controls (0% - 125% like VLC)
   volumeSlider.addEventListener('input', () => {
     const val = parseInt(volumeSlider.value, 10);
-    // Standard HTML5 video volume is 0.0 - 1.0 (100%). We cap audio at 1.0, but show VLC 125%
     videoPlayer.volume = Math.min(1.0, val / 100);
     videoPlayer.muted = false;
     updateVolumeUI();
@@ -564,7 +635,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Fullscreen (F)
+  // =========================================================================
+  // VLC Fullscreen Mode with 5-Second Footer / Cursor Auto-Hide
+  // =========================================================================
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
       if (vlcWindow.requestFullscreen) {
@@ -581,9 +654,45 @@ document.addEventListener('DOMContentLoaded', () => {
   menuFullscreen.addEventListener('click', toggleFullscreen);
   videoPlayer.addEventListener('dblclick', toggleFullscreen);
 
-  // Authenticate VLC Keyboard Shortcuts
+  function resetFullscreenInactivityTimer() {
+    if (!document.fullscreenElement) {
+      vlcWindow.classList.remove('fullscreen-mode', 'controls-hidden', 'hide-cursor');
+      clearTimeout(fullscreenHideTimer);
+      return;
+    }
+
+    // In fullscreen: reveal controls and cursor immediately upon mouse movement
+    vlcWindow.classList.add('fullscreen-mode');
+    vlcWindow.classList.remove('controls-hidden', 'hide-cursor');
+
+    clearTimeout(fullscreenHideTimer);
+    // Hide controls and cursor after 5 seconds of inactivity
+    fullscreenHideTimer = setTimeout(() => {
+      if (document.fullscreenElement && !videoPlayer.paused) {
+        vlcWindow.classList.add('controls-hidden', 'hide-cursor');
+      }
+    }, 5000);
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+      vlcWindow.classList.add('fullscreen-mode');
+      resetFullscreenInactivityTimer();
+    } else {
+      vlcWindow.classList.remove('fullscreen-mode', 'controls-hidden', 'hide-cursor');
+      clearTimeout(fullscreenHideTimer);
+    }
+  });
+
+  // Mouse move listener for fullscreen controls reveal
+  vlcWindow.addEventListener('mousemove', () => {
+    if (document.fullscreenElement) {
+      resetFullscreenInactivityTimer();
+    }
+  });
+
+  // Keyboard Shortcuts (Authentic VLC Media Player)
   window.addEventListener('keydown', (e) => {
-    // If user is typing in a modal or input box, allow normal typing
     if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
       if (e.key === 'Escape') {
         closeStreamModal();
@@ -624,16 +733,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Ctrl + Left / Right: 1 minute jump
     if (ctrl && e.key === 'ArrowRight') {
       e.preventDefault();
-      videoPlayer.currentTime = Math.min(videoPlayer.duration || Infinity, videoPlayer.currentTime + 60);
+      const cur = videoPlayer.currentTime + currentStreamSeekOffset;
+      seekToTime(cur + 60);
       return;
     }
     if (ctrl && e.key === 'ArrowLeft') {
       e.preventDefault();
-      videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 60);
+      const cur = videoPlayer.currentTime + currentStreamSeekOffset;
+      seekToTime(Math.max(0, cur - 60));
       return;
     }
 
-    // Normal Keys
+    // Standard VLC keys
     switch (e.key) {
       case ' ':
         e.preventDefault();
@@ -678,11 +789,17 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
       case 'ArrowRight':
         e.preventDefault();
-        videoPlayer.currentTime = Math.min(videoPlayer.duration || Infinity, videoPlayer.currentTime + 10);
+        {
+          const cur = videoPlayer.currentTime + currentStreamSeekOffset;
+          seekToTime(cur + 10);
+        }
         break;
       case 'ArrowLeft':
         e.preventDefault();
-        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+        {
+          const cur = videoPlayer.currentTime + currentStreamSeekOffset;
+          seekToTime(Math.max(0, cur - 10));
+        }
         break;
       case 'Escape':
         closeStreamModal();
@@ -695,7 +812,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Helpers
   function formatTime(seconds) {
-    if (!seconds || isNaN(seconds)) return '00:00:00';
+    if (!seconds || isNaN(seconds) || seconds < 0) return '00:00:00';
     const s = Math.floor(seconds);
     const hrs = Math.floor(s / 3600);
     const mins = Math.floor((s % 3600) / 60);
