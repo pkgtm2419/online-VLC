@@ -1,6 +1,7 @@
 package com.pvp.player
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -13,8 +14,6 @@ import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.chaquo.python.Python
-import com.chaquo.python.android.AndroidPlatform
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -26,9 +25,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
     private lateinit var progressBar: ProgressBar
-    private var serverPort = 8000
-    private var serverStarted = false
     private var pendingUrl: String? = null
+    private var isAppReady = false
+    private var lastCheckedClip = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,11 +39,11 @@ class MainActivity : AppCompatActivity() {
         setupFullscreen()
         setupWebView()
 
-        // Handle incoming share intent
+        // Handle incoming video share intent (from YouTube, Instagram, etc.)
         handleIntent(intent)
 
-        // Start the Python FastAPI server
-        startPythonServer()
+        // Load the VLC Player
+        loadPlayer()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -54,23 +53,34 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (serverStarted) {
-            webView.post {
-                webView.evaluateJavascript("if (typeof checkClipboardForVideoUrl === 'function') checkClipboardForVideoUrl();", null)
+        checkClipboard()
+    }
+
+    private fun checkClipboard() {
+        try {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            if (clipboard?.hasPrimaryClip() == true) {
+                val item = clipboard.primaryClip?.getItemAt(0)
+                val text = item?.text?.toString()?.trim()
+                if (text != null && (text.startsWith("http://") || text.startsWith("https://")) && text != lastCheckedClip) {
+                    lastCheckedClip = text
+                    webView.post {
+                        webView.evaluateJavascript("if (typeof checkClipboardForVideoUrl === 'function') checkClipboardForVideoUrl();", null)
+                    }
+                }
             }
-        }
+        } catch (_: Exception) {}
     }
 
     private fun handleIntent(intent: Intent?) {
         when (intent?.action) {
             Intent.ACTION_SEND -> {
                 intent.getStringExtra(Intent.EXTRA_TEXT)?.let { sharedText ->
-                    // Extract URL from shared text
                     val urlPattern = Regex("https?://\\S+")
                     val match = urlPattern.find(sharedText)
                     if (match != null) {
                         pendingUrl = match.value
-                        if (serverStarted) {
+                        if (isAppReady) {
                             loadUrlInPlayer(pendingUrl!!)
                             pendingUrl = null
                         }
@@ -81,19 +91,32 @@ class MainActivity : AppCompatActivity() {
                 intent.data?.let { uri ->
                     if (uri.scheme == "pvp") {
                         pendingUrl = uri.getQueryParameter("url")
-                        if (serverStarted && pendingUrl != null) {
-                            loadUrlInPlayer(pendingUrl!!)
-                            pendingUrl = null
-                        }
+                    } else if (uri.scheme == "http" || uri.scheme == "https") {
+                        pendingUrl = uri.toString()
+                    }
+                    if (isAppReady && pendingUrl != null) {
+                        loadUrlInPlayer(pendingUrl!!)
+                        pendingUrl = null
                     }
                 }
             }
         }
     }
 
+    private fun loadPlayer() {
+        progressBar.visibility = View.VISIBLE
+        // Load the embedded VLC single-page web app
+        val targetUrl = "file:///android_asset/www/index.html"
+        webView.loadUrl(targetUrl)
+    }
+
     private fun loadUrlInPlayer(videoUrl: String) {
         val encoded = Uri.encode(videoUrl)
-        webView.loadUrl("http://127.0.0.1:$serverPort/?url=$encoded")
+        val script = "if (typeof handleStreamSubmit === 'function') { " +
+                "document.getElementById('urlModalInput').value = decodeURIComponent('$encoded'); " +
+                "handleStreamSubmit(); " +
+                "}"
+        webView.evaluateJavascript(script, null)
     }
 
     private fun setupFullscreen() {
@@ -129,12 +152,18 @@ class MainActivity : AppCompatActivity() {
             setSupportMultipleWindows(false)
             useWideViewPort = true
             loadWithOverviewMode = true
+            databaseEnabled = true
         }
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
+                isAppReady = true
+                if (pendingUrl != null) {
+                    loadUrlInPlayer(pendingUrl!!)
+                    pendingUrl = null
+                }
             }
 
             override fun onReceivedError(
@@ -143,15 +172,6 @@ class MainActivity : AppCompatActivity() {
                 error: WebResourceError?
             ) {
                 super.onReceivedError(view, request, error)
-                if (request?.isForMainFrame == true) {
-                    // Server might not be ready yet, retry after delay
-                    lifecycleScope.launch {
-                        delay(2000)
-                        if (serverStarted) {
-                            view?.loadUrl("http://127.0.0.1:$serverPort/")
-                        }
-                    }
-                }
             }
         }
 
@@ -164,94 +184,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Add JavaScript interface for native features
+        // Add JavaScript interface for native Android features
         webView.addJavascriptInterface(PVPBridge(this), "PVPNative")
-    }
-
-    private fun startPythonServer() {
-        progressBar.visibility = View.VISIBLE
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // Initialize Python
-                if (!Python.isStarted()) {
-                    Python.start(AndroidPlatform(this@MainActivity))
-                }
-
-                val py = Python.getInstance()
-                val serverModule = py.getModule("pvp_server")
-
-                // Start the server in a background thread
-                Thread {
-                    try {
-                        serverModule.callAttr("start_server", serverPort)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }.start()
-
-                // Wait for server to be ready
-                var retries = 0
-                while (retries < 30) {
-                    delay(1000)
-                    if (isServerReady()) {
-                        break
-                    }
-                    retries++
-                }
-
-                withContext(Dispatchers.Main) {
-                    if (isServerReady()) {
-                        serverStarted = true
-                        if (pendingUrl != null) {
-                            loadUrlInPlayer(pendingUrl!!)
-                            pendingUrl = null
-                        } else {
-                            webView.loadUrl("http://127.0.0.1:$serverPort/")
-                        }
-                    } else {
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Failed to start server. Loading offline mode...",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        // Fallback: load the static HTML directly
-                        webView.loadUrl("file:///android_asset/www/index.html")
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        this@MainActivity,
-                        "Error: ${e.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    webView.loadUrl("file:///android_asset/www/index.html")
-                }
-            }
-        }
-    }
-
-    private fun isServerReady(): Boolean {
-        return try {
-            val url = URL("http://127.0.0.1:$serverPort/")
-            val conn = url.openConnection() as HttpURLConnection
-            conn.connectTimeout = 1000
-            conn.readTimeout = 1000
-            conn.requestMethod = "HEAD"
-            val code = conn.responseCode
-            conn.disconnect()
-            code == 200
-        } catch (e: Exception) {
-            false
-        }
     }
 
     override fun onBackPressed() {
         if (webView.canGoBack()) {
             webView.goBack()
         } else {
-            // Minimize to background instead of closing
             moveTaskToBack(true)
         }
     }

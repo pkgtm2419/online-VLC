@@ -1,7 +1,6 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.chaquo.python")
 }
 
 android {
@@ -15,20 +14,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        ndk {
-            abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-        }
-
-        python {
-            version = "3.11"
-            pip {
-                install("fastapi")
-                install("uvicorn")
-                install("yt-dlp")
-                install("httpx")
-                install("pydantic")
-            }
-        }
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -38,6 +24,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+        }
+        debug {
+            applicationIdSuffix = ""
+            isDebuggable = true
         }
     }
 

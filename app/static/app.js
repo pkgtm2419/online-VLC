@@ -4,6 +4,9 @@
  * true VLC fullscreen mode with 5s cursor/footer autohide, and robust duration/seeking.
  */
 
+// Base URL for API requests (supports desktop, cloud, and mobile webviews running from file:// assets)
+const API_BASE = (typeof window !== 'undefined' && window.location.protocol === 'file:') ? 'https://online-vlc.onrender.com' : '';
+
 document.addEventListener('DOMContentLoaded', () => {
   // DOM Elements - VLC Window & Menubar
   const vlcWindow = document.getElementById('vlcWindow');
@@ -310,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setModalLoading(true);
 
     try {
-      const res = await fetch('/api/extract', {
+      const res = await fetch(API_BASE + '/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: rawUrl })
@@ -429,7 +432,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     showVideoLoader(`Loading track ${index + 1}: ${track.title}...`);
     try {
-      const res = await fetch('/api/extract', {
+      const res = await fetch(API_BASE + '/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: track.url })
@@ -596,9 +599,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (q.is_hls) {
       currentStreamSeekOffset = 0;
+      const hlsSource = q.video_url.startsWith('/') ? API_BASE + q.video_url : q.video_url;
       if (Hls.isSupported()) {
         hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
-        hlsInstance.loadSource(q.video_url);
+        hlsInstance.loadSource(hlsSource);
         hlsInstance.attachMedia(videoPlayer);
         hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
           updateAudioTracksFromHls();
@@ -613,13 +617,16 @@ document.addEventListener('DOMContentLoaded', () => {
           updateSubtitleTracksFromHls();
         });
       } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-        videoPlayer.src = q.video_url;
+        videoPlayer.src = hlsSource;
         if (startTime > 0) videoPlayer.currentTime = startTime;
         triggerAutoplay();
       }
     } else {
       // Direct stream or live muxed stream
       let streamUrl = q.play_url || q.video_url;
+      if (streamUrl && streamUrl.startsWith('/')) {
+        streamUrl = API_BASE + streamUrl;
+      }
       if (q.type === 'mux' && startTime > 0) {
         currentStreamSeekOffset = startTime;
         const cleanBase = streamUrl.split('&start=')[0];
