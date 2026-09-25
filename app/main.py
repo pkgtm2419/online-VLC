@@ -20,8 +20,12 @@ from app.streamer import proxy_stream, stream_muxed_video
 
 APP_DIR = Path(__file__).parent
 STATIC_DIR = APP_DIR / "static"
-DATA_DIR = Path("data")
-DATA_DIR.mkdir(exist_ok=True)
+try:
+    DATA_DIR = Path("data")
+    DATA_DIR.mkdir(exist_ok=True)
+except Exception:
+    DATA_DIR = Path.home() / ".pvp" / "data"
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_FILE = DATA_DIR / "history.json"
 
 app = FastAPI(title="Ad-Free Universal Video Player", version="1.0.0")

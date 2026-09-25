@@ -150,8 +150,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let osdTimer = null;
 
   // 1. Initial State: Open Network Stream Modal automatically on page load
-  openStreamModal();
-  setTimeout(() => urlModalInput.focus(), 200);
+  const urlParams = new URLSearchParams(window.location.search);
+  const autoUrl = urlParams.get('url');
+  if (autoUrl) {
+    urlModalInput.value = autoUrl;
+    setTimeout(() => {
+      handleStreamSubmit();
+    }, 100);
+  } else {
+    openStreamModal();
+    setTimeout(() => urlModalInput.focus(), 200);
+  }
 
   // Modal Open/Close Controls
   function openStreamModal() {

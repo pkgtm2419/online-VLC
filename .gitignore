@@ -21,3 +21,19 @@ data/
 Thumbs.db
 .vscode/
 .idea/
+
+# Desktop build artifacts
+desktop/build/
+desktop/dist/
+desktop/*.exe
+
+# Mobile build artifacts
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/android/app/src/main/assets/www/
+mobile/android/app/src/main/python/app/
+mobile/android/app/src/main/python/data/
+mobile/android/local.properties
+*.apk
+*.aab
