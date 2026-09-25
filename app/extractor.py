@@ -201,6 +201,9 @@ def extract_single_video_info(cleaned_url: str) -> Dict[str, Any]:
                 "ext": info.get('ext', 'mp4')
             })
 
+        if not quality_options:
+            raise Exception("No playable video streams found.")
+
         default_index = 0
         for idx, q in enumerate(quality_options):
             if q['height'] in (720, 1080):
@@ -281,7 +284,10 @@ def extract_video_info(url: str, force_single: bool = False) -> Dict[str, Any]:
                         # Extract full stream info for the first track so playback begins immediately
                         first_track_info = {}
                         if formatted_entries:
-                            first_track_info = extract_single_video_info(formatted_entries[0]['url'])
+                            try:
+                                first_track_info = extract_video_info(formatted_entries[0]['url'], force_single=True)
+                            except Exception:
+                                first_track_info = {}
 
                         return {
                             "success": True,
@@ -306,6 +312,45 @@ def extract_video_info(url: str, force_single: bool = False) -> Dict[str, Any]:
     try:
         return extract_single_video_info(cleaned_url)
     except Exception as e:
+        yt_match = re.search(r'(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|v/|shorts/))([a-zA-Z0-9_-]{11})', cleaned_url)
+        if yt_match:
+            yt_id = yt_match.group(1)
+            yt_title = "YouTube Video"
+            yt_thumb = f"https://i.ytimg.com/vi/{yt_id}/hqdefault.jpg"
+            try:
+                import urllib.request, json
+                req = urllib.request.Request(
+                    f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={yt_id}&format=json",
+                    headers={"User-Agent": "Mozilla/5.0"}
+                )
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    oembed_data = json.loads(resp.read().decode('utf-8'))
+                    yt_title = oembed_data.get('title') or yt_title
+                    yt_thumb = oembed_data.get('thumbnail_url') or yt_thumb
+            except Exception:
+                pass
+
+            return {
+                "success": True,
+                "is_playlist": False,
+                "title": yt_title,
+                "is_embed_fallback": True,
+                "duration": None,
+                "duration_str": "--:--",
+                "thumbnail": yt_thumb,
+                "qualities": [
+                    {
+                        "label": "Auto",
+                        "height": 1080,
+                        "type": "embed",
+                        "video_url": f"https://www.youtube-nocookie.com/embed/{yt_id}?autoplay=1&rel=0&modestbranding=1",
+                        "audio_url": None,
+                        "is_hls": False
+                    }
+                ],
+                "default_quality_index": 0
+            }
+
         return {
             "success": False,
             "error": str(e),

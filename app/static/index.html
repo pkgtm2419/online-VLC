@@ -123,6 +123,15 @@
         preload="auto"
       ></video>
 
+      <!-- Fallback Embed Player (for Cloud Server IP Restrictions) -->
+      <iframe 
+        id="embedFrame" 
+        class="vlc-video hidden" 
+        frameborder="0" 
+        allow="autoplay; fullscreen; encrypted-media; picture-in-picture" 
+        allowfullscreen
+      ></iframe>
+
       <!-- Video Loading Spinner -->
       <div id="videoLoader" class="vlc-loader hidden">
         <div class="vlc-spinner"></div>

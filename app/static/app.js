@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const coneScreen = document.getElementById('coneScreen');
   const btnQuickOpen = document.getElementById('btnQuickOpen');
   const videoPlayer = document.getElementById('videoPlayer');
+  const embedFrame = document.getElementById('embedFrame');
   const videoLoader = document.getElementById('videoLoader');
   const loaderMsg = document.getElementById('loaderMsg');
   const unmutePrompt = document.getElementById('unmutePrompt');
@@ -381,6 +382,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
     videoPlayer.autoplay = true;
 
+    if (q.type === 'embed') {
+      videoPlayer.classList.add('hidden');
+      videoPlayer.pause();
+      if (embedFrame) {
+        embedFrame.classList.remove('hidden');
+        embedFrame.src = q.video_url;
+      }
+      hideVideoLoader();
+      updatePlayPauseUI(true);
+      return;
+    } else {
+      if (embedFrame) {
+        embedFrame.classList.add('hidden');
+        embedFrame.src = '';
+      }
+      videoPlayer.classList.remove('hidden');
+    }
+
     if (q.is_hls) {
       currentStreamSeekOffset = 0;
       if (Hls.isSupported()) {
@@ -487,6 +506,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (hlsInstance) {
       hlsInstance.destroy();
       hlsInstance = null;
+    }
+    if (embedFrame) {
+      embedFrame.src = '';
+      embedFrame.classList.add('hidden');
     }
     videoPlayer.src = '';
     videoPlayer.classList.add('hidden');
