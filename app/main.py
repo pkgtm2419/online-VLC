@@ -86,6 +86,9 @@ async def extract_url(req: ExtractRequest):
             encoded_v = urllib.parse.quote(v_url, safe="")
             encoded_a = urllib.parse.quote(a_url, safe="")
             q["play_url"] = f"/api/stream/mux?v={encoded_v}&a={encoded_a}"
+        elif q_type == "embed":
+            q["play_url"] = v_url
+            q["raw_url"] = v_url
         else:
             encoded_v = urllib.parse.quote(v_url, safe="")
             q["play_url"] = f"/api/stream/direct?url={encoded_v}"
