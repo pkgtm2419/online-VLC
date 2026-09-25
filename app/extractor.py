@@ -240,6 +240,11 @@ def extract_video_info(url: str, force_single: bool = False) -> Dict[str, Any]:
             'quiet': True,
             'skip_download': True,
             'extract_flat': 'in_playlist',
+            'extractor_args': {
+                'youtube': {
+                    'player_client': ['web_embedded', 'web_creator', 'mweb', 'android', 'web']
+                }
+            },
             'remote_components': ['ejs:github'],
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
