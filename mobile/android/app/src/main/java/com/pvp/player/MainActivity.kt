@@ -52,6 +52,15 @@ class MainActivity : AppCompatActivity() {
         handleIntent(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (serverStarted) {
+            webView.post {
+                webView.evaluateJavascript("if (typeof checkClipboardForVideoUrl === 'function') checkClipboardForVideoUrl();", null)
+            }
+        }
+    }
+
     private fun handleIntent(intent: Intent?) {
         when (intent?.action) {
             Intent.ACTION_SEND -> {

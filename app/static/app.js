@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const vlcWindow = document.getElementById('vlcWindow');
   const windowTitle = document.getElementById('windowTitle');
   const btnMenuBarStream = document.getElementById('btnMenuBarStream');
+  const btnMenuBarPastePlay = document.getElementById('btnMenuBarPastePlay');
 
   // Menubar items
   const menuOpenStream = document.getElementById('menuOpenStream');
@@ -32,6 +33,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const vlcDisplay = document.getElementById('vlcDisplay');
   const coneScreen = document.getElementById('coneScreen');
   const btnQuickOpen = document.getElementById('btnQuickOpen');
+  const btnQuickPastePlay = document.getElementById('btnQuickPastePlay');
+  const clipboardBanner = document.getElementById('clipboardBanner');
+  const clipboardUrlText = document.getElementById('clipboardUrlText');
+  const btnClipboardPlay = document.getElementById('btnClipboardPlay');
+  const btnClipboardDismiss = document.getElementById('btnClipboardDismiss');
   const videoPlayer = document.getElementById('videoPlayer');
   const embedFrame = document.getElementById('embedFrame');
   const videoLoader = document.getElementById('videoLoader');
@@ -80,6 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const streamModal = document.getElementById('streamModal');
   const urlModalInput = document.getElementById('urlModalInput');
   const btnModalPaste = document.getElementById('btnModalPaste');
+  const btnModalPasteStream = document.getElementById('btnModalPasteStream');
   const btnModalStream = document.getElementById('btnModalStream');
   const modalBtnText = document.getElementById('modalBtnText');
   const modalSpinner = document.getElementById('modalSpinner');
@@ -204,6 +211,92 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   btnModalStream.addEventListener('click', handleStreamSubmit);
+
+  // Instant One-Tap Paste & Play (BlackHole Style)
+  async function pasteAndPlay() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const cleanUrl = text ? text.trim() : '';
+      if (!cleanUrl || (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://'))) {
+        showVlcOsd('Clipboard does not contain a video URL');
+        openStreamModal();
+        return;
+      }
+      closeStreamModal();
+      if (clipboardBanner) clipboardBanner.classList.add('hidden');
+      urlModalInput.value = cleanUrl;
+      showVlcOsd('Streaming URL from clipboard...');
+      handleStreamSubmit();
+    } catch (err) {
+      openStreamModal();
+      urlModalInput.focus();
+      showModalError('Please paste your video URL into the box above.');
+    }
+  }
+
+  if (btnQuickPastePlay) {
+    btnQuickPastePlay.addEventListener('click', pasteAndPlay);
+  }
+  if (btnMenuBarPastePlay) {
+    btnMenuBarPastePlay.addEventListener('click', pasteAndPlay);
+  }
+  if (btnModalPasteStream) {
+    btnModalPasteStream.addEventListener('click', async () => {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && (text.trim().startsWith('http://') || text.trim().startsWith('https://'))) {
+          urlModalInput.value = text.trim();
+        }
+      } catch (_) {}
+      handleStreamSubmit();
+    });
+  }
+
+  // BlackHole-Style Clipboard Auto-Detection on Focus
+  let lastDetectedClipboardUrl = '';
+  let dismissedClipboardUrl = '';
+
+  async function checkClipboardForVideoUrl() {
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.readText) return;
+      if (!videoPlayer.paused && videoPlayer.currentTime > 0) return;
+      const text = (await navigator.clipboard.readText() || '').trim();
+      if (!text || (!text.startsWith('http://') && !text.startsWith('https://'))) return;
+      if (text === dismissedClipboardUrl || text === lastDetectedClipboardUrl) return;
+
+      const isLikelyVideo = /(?:youtube\.com|youtu\.be|instagram\.com|tiktok\.com|twitter\.com|x\.com|facebook\.com|fb\.watch|reddit\.com|vimeo\.com|dailymotion\.com|\.mp4|\.m3u8|\.mkv|\.mov|\.webm|\/video\/|\/reel\/|\/watch|\/download\/)/i.test(text);
+      if (isLikelyVideo) {
+        lastDetectedClipboardUrl = text;
+        if (clipboardUrlText) {
+          clipboardUrlText.textContent = text.length > 50 ? text.slice(0, 48) + '...' : text;
+        }
+        if (clipboardBanner) {
+          clipboardBanner.classList.remove('hidden');
+        }
+      }
+    } catch (_) {}
+  }
+
+  if (btnClipboardPlay) {
+    btnClipboardPlay.addEventListener('click', () => {
+      if (clipboardBanner) clipboardBanner.classList.add('hidden');
+      if (lastDetectedClipboardUrl) {
+        urlModalInput.value = lastDetectedClipboardUrl;
+        handleStreamSubmit();
+      }
+    });
+  }
+
+  if (btnClipboardDismiss) {
+    btnClipboardDismiss.addEventListener('click', () => {
+      dismissedClipboardUrl = lastDetectedClipboardUrl;
+      if (clipboardBanner) clipboardBanner.classList.add('hidden');
+    });
+  }
+
+  window.addEventListener('focus', () => {
+    setTimeout(checkClipboardForVideoUrl, 400);
+  });
 
   // Handle URL Submission (Single Video or Playlist)
   async function handleStreamSubmit() {

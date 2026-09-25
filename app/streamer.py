@@ -29,6 +29,20 @@ async def proxy_stream(url: str, request: Request) -> Response:
     client = httpx.AsyncClient(follow_redirects=True, timeout=30.0)
     req_headers = dict(DEFAULT_HEADERS)
     
+    # Inject platform-specific referers to prevent 403 Forbidden on CDN links
+    try:
+        domain = urllib.parse.urlparse(url).netloc.lower()
+        if any(x in domain for x in ['instagram', 'cdninstagram', 'fbcdn']):
+            req_headers['Referer'] = 'https://www.instagram.com/'
+        elif any(x in domain for x in ['tiktok', 'tiktokcdn', 'byteoversea', 'ibyteimg']):
+            req_headers['Referer'] = 'https://www.tiktok.com/'
+        elif any(x in domain for x in ['twimg', 'twitter', 'x.com']):
+            req_headers['Referer'] = 'https://x.com/'
+        elif any(x in domain for x in ['reddit', 'redd.it']):
+            req_headers['Referer'] = 'https://www.reddit.com/'
+    except Exception:
+        pass
+
     if request:
         range_header = request.headers.get("range")
         if range_header:

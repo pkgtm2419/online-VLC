@@ -110,6 +110,15 @@
           </svg>
           <span>Open URL</span>
         </button>
+
+        <!-- Direct One-Tap Paste & Play from Menu Bar (BlackHole Style) -->
+        <button id="btnMenuBarPastePlay" class="menubar-direct-btn btn-menubar-paste" title="Paste URL from Clipboard & Play Instantly">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+          </svg>
+          <span>📋 Paste & Play</span>
+        </button>
       </div>
 
       <div class="menubar-title" id="windowTitle">PVP (Personal Video Player)</div>
@@ -117,6 +126,18 @@
 
     <!-- 2. Central Video / Media Display Area (Full Viewport) -->
     <main class="vlc-display" id="vlcDisplay">
+      <!-- BlackHole-Style Instant Clipboard Detection Banner -->
+      <div id="clipboardBanner" class="vlc-clipboard-banner hidden">
+        <div class="clipboard-banner-left">
+          <span class="clipboard-badge">📋 CLIPBOARD</span>
+          <span class="clipboard-text">Found video URL: <span id="clipboardUrlText" class="clipboard-url-highlight">...</span></span>
+        </div>
+        <div class="clipboard-banner-actions">
+          <button id="btnClipboardPlay" class="btn-clipboard-play" title="Stream immediately">▶ Stream Now</button>
+          <button id="btnClipboardDismiss" class="btn-clipboard-dismiss" title="Dismiss">&times;</button>
+        </div>
+      </div>
+
       <!-- Idle State: VLC Traffic Cone Poster -->
       <div class="vlc-cone-screen" id="coneScreen">
         <div class="cone-graphic">
@@ -129,12 +150,41 @@
           </svg>
         </div>
         <h2 class="cone-app-title">PVP media player</h2>
-        <button class="open-stream-btn" id="btnQuickOpen">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-          Open Network Stream (Ctrl+N)
-        </button>
+        <p class="cone-tagline">⚡ Direct Universal Streamer &bull; Zero Downloads &bull; 100% Ad-Free Playback</p>
+
+        <!-- Main Action Buttons (One-Tap Paste & Play like BlackHole + Classic Open Stream) -->
+        <div class="cone-actions-row">
+          <button class="open-stream-btn btn-paste-play" id="btnQuickPastePlay" title="Paste copied video URL and play immediately">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              <polygon points="10 11 15 14 10 17" fill="currentColor"></polygon>
+            </svg>
+            Paste &amp; Play (One-Tap)
+          </button>
+
+          <button class="open-stream-btn btn-secondary-stream" id="btnQuickOpen" title="Open Network Stream Dialog (Ctrl+N)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            Open Stream (Ctrl+N)
+          </button>
+        </div>
+
+        <!-- Supported Services Indicator -->
+        <div class="supported-platforms-container">
+          <span class="platforms-label">Plays directly from:</span>
+          <div class="platform-chips-row">
+            <span class="platform-chip">YouTube &amp; Shorts</span>
+            <span class="platform-chip">Instagram Reels</span>
+            <span class="platform-chip">TikTok</span>
+            <span class="platform-chip">Twitter / X</span>
+            <span class="platform-chip">Facebook</span>
+            <span class="platform-chip">Reddit</span>
+            <span class="platform-chip">Movie Sites (HLS)</span>
+            <span class="platform-chip">Direct MP4 / M3U8</span>
+          </div>
+        </div>
       </div>
 
       <!-- Active Video Element (Full Size of Screen Browser) -->
@@ -394,6 +444,9 @@
 
       <div class="modal-footer">
         <button id="btnModalCancel" class="vlc-dialog-btn">Cancel</button>
+        <button id="btnModalPasteStream" class="vlc-dialog-btn btn-paste-vlc" title="Paste clipboard link and stream immediately">
+          📋 Paste &amp; Stream
+        </button>
         <button id="btnModalStream" class="vlc-dialog-btn btn-primary-vlc">
           <span id="modalBtnText">Stream</span>
           <div id="modalSpinner" class="vlc-spinner-sm hidden"></div>

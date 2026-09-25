@@ -346,6 +346,10 @@ def extract_single_video_info(cleaned_url: str) -> Dict[str, Any]:
         for cf in combined_formats:
             h = cf.get('height') or 0
             label = f"{h}p" if h > 0 else "Auto"
+            is_cf_hls = (
+                ('.m3u8' in cf['url'] or 'm3u8' in str(cf.get('protocol', '')) or cf.get('ext') == 'm3u8')
+                and 'googlevideo' not in cf['url']
+            )
             if h not in seen_heights and h > 0:
                 seen_heights.add(h)
                 quality_options.append({
@@ -354,7 +358,7 @@ def extract_single_video_info(cleaned_url: str) -> Dict[str, Any]:
                     "type": "direct",
                     "video_url": cf['url'],
                     "audio_url": None,
-                    "is_hls": '.m3u8' in cf['url'] and 'googlevideo' not in cf['url'],
+                    "is_hls": is_cf_hls,
                     "ext": cf.get('ext', 'mp4')
                 })
 
@@ -371,7 +375,10 @@ def extract_single_video_info(cleaned_url: str) -> Dict[str, Any]:
                 seen_heights.add(h)
                 has_audio = vf.get('acodec') != 'none'
                 stream_type = "direct" if has_audio else ("mux" if best_audio_url else "direct")
-                is_hls = '.m3u8' in vf['url'] and 'googlevideo' not in vf['url']
+                is_hls = (
+                    ('.m3u8' in vf['url'] or 'm3u8' in str(vf.get('protocol', '')) or vf.get('ext') == 'm3u8')
+                    and 'googlevideo' not in vf['url']
+                )
                 
                 quality_options.append({
                     "label": f"{h}p" + (" HD" if h in (720, 1080) else "") + (" 4K" if h >= 2160 else ""),

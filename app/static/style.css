@@ -1096,3 +1096,220 @@ html, body {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
   transition: all 0.2s;
 }
+
+/* ==========================================================================
+   BlackHole-Inspired One-Tap & Direct Streaming UI Components
+   ========================================================================== */
+
+.cone-tagline {
+  color: #ffaa44;
+  font-size: 13px;
+  margin: -10px 0 15px 0;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.cone-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.open-stream-btn.btn-paste-play {
+  background: linear-gradient(135deg, #ff8800 0%, #e65100 100%);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(255, 136, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+.open-stream-btn.btn-paste-play:hover {
+  background: linear-gradient(135deg, #ffa022 0%, #f56100 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 136, 0, 0.6);
+}
+
+.open-stream-btn.btn-secondary-stream {
+  background: rgba(45, 52, 60, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #d1d5db;
+}
+
+.open-stream-btn.btn-secondary-stream:hover {
+  background: rgba(60, 68, 78, 0.95);
+  color: #ffffff;
+}
+
+.supported-platforms-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 5px;
+  max-width: 600px;
+}
+
+.platforms-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #8892a0;
+  font-weight: 600;
+}
+
+.platform-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.platform-chip {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+
+.platform-chip:hover {
+  background: rgba(255, 136, 0, 0.15);
+  border-color: #ff8800;
+  color: #ffaa44;
+  transform: translateY(-1px);
+}
+
+/* Menubar Paste & Play */
+.menubar-direct-btn.btn-menubar-paste {
+  background: rgba(255, 136, 0, 0.2);
+  border: 1px solid #ff8800;
+  color: #ff9922;
+  margin-left: 6px;
+}
+
+.menubar-direct-btn.btn-menubar-paste:hover {
+  background: #ff8800;
+  color: #ffffff;
+}
+
+/* Modal Paste & Stream */
+.vlc-dialog-btn.btn-paste-vlc {
+  background: rgba(255, 136, 0, 0.15);
+  border: 1px solid #ff8800;
+  color: #ffaa44;
+  font-weight: 600;
+}
+
+.vlc-dialog-btn.btn-paste-vlc:hover {
+  background: #ff8800;
+  color: #ffffff;
+}
+
+/* Clipboard Auto-Detection Banner (Floating Notification) */
+.vlc-clipboard-banner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: rgba(24, 28, 34, 0.95);
+  border: 1px solid #ff8800;
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 10px rgba(255, 136, 0, 0.3);
+  backdrop-filter: blur(8px);
+  animation: bannerSlideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 90%;
+}
+
+@keyframes bannerSlideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -15px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.clipboard-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.clipboard-badge {
+  background: #ff8800;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.clipboard-text {
+  font-size: 13px;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clipboard-url-highlight {
+  color: #38bdf8;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.clipboard-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-clipboard-play {
+  background: #ff8800;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.btn-clipboard-play:hover {
+  background: #ffa022;
+}
+
+.btn-clipboard-dismiss {
+  background: transparent;
+  color: #94a3b8;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.btn-clipboard-dismiss:hover {
+  color: #ffffff;
+}
+
