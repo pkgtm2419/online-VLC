@@ -118,46 +118,16 @@
           </button>
         </div>
 
-        <!-- Supported Platforms Section -->
-        <div class="platforms-section">
-          <span class="section-label">Supported Platforms</span>
-          <div class="platform-chips-scroll">
-            <div class="platform-chip" data-platform="youtube">
-              <span class="chip-dot dot-yt"></span> YouTube &amp; Shorts
-            </div>
-            <div class="platform-chip" data-platform="instagram">
-              <span class="chip-dot dot-ig"></span> Instagram Reels
-            </div>
-            <div class="platform-chip" data-platform="tiktok">
-              <span class="chip-dot dot-tt"></span> TikTok
-            </div>
-            <div class="platform-chip" data-platform="twitter">
-              <span class="chip-dot dot-tw"></span> Twitter / X
-            </div>
-            <div class="platform-chip" data-platform="twitch">
-              <span class="chip-dot dot-twch"></span> Twitch
-            </div>
-            <div class="platform-chip" data-platform="hls">
-              <span class="chip-dot dot-hls"></span> HLS (m3u8)
-            </div>
-            <div class="platform-chip" data-platform="direct">
-              <span class="chip-dot dot-mp4"></span> Direct MP4
-            </div>
-            <div class="platform-chip" data-platform="vimeo">
-              <span class="chip-dot dot-vm"></span> Vimeo
-            </div>
-          </div>
-        </div>
-
-        <!-- Recent Streams Section -->
-        <div class="history-section">
+        <!-- Recent Streams Section (Positioned at bottom of Home View) -->
+        <div class="history-section bottom-history-section">
           <div class="history-header">
             <span class="section-label">Recent Plays</span>
-            <button id="btnClearHistory" class="btn-text-subtle hidden">Clear</button>
+            <button id="btnShowAllHistory" class="btn-text-subtle hidden">Show more history</button>
           </div>
+
           <div id="historyList" class="history-list">
             <div class="history-empty">
-              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
@@ -169,7 +139,7 @@
 
         <!-- On-Device Privacy Badge -->
         <div class="privacy-badge">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
@@ -211,6 +181,19 @@
         <div id="playerLoader" class="player-loader hidden">
           <div class="spinner-large"></div>
           <span id="playerLoaderMsg">Opening stream...</span>
+        </div>
+
+        <!-- Error Notification Overlay in Player -->
+        <div id="playerErrorOverlay" class="player-error-overlay hidden">
+          <div class="player-error-card">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="#ef4444" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <span id="playerErrorMsg" class="player-error-text">Stream could not be loaded</span>
+            <button id="btnPlayerErrorBack" class="btn-error-back">Return to Home</button>
+          </div>
         </div>
 
         <!-- OSD Toast Banner -->
@@ -410,7 +393,6 @@
       </div>
       <div class="sheet-content">
         <div id="audioTracksList" class="sheet-list-group">
-          <!-- Dynamic audio track items -->
           <div class="sheet-list-item active" data-track="-1">
             <span class="sheet-item-label">Default Audio</span>
             <span class="sheet-item-check">✓</span>
@@ -500,24 +482,107 @@
       </div>
     </div>
 
-    <!-- 4. Settings & Network Sheet -->
+    <!-- 4. Global Settings Sheet (Defaults for all videos) -->
     <div id="settingsSheet" class="bottom-sheet hidden">
       <div class="sheet-handle"></div>
       <div class="sheet-header">
-        <h3 class="sheet-title">PVP Settings</h3>
+        <h3 class="sheet-title">Playback &amp; App Settings</h3>
         <button class="sheet-close-btn">&times;</button>
       </div>
       <div class="sheet-content">
-        <div class="settings-card">
-          <div class="settings-card-header">
-            <span class="settings-card-title">Backend Architecture</span>
-            <span id="backendBadge" class="status-badge badge-active">Standalone Ready</span>
+
+        <!-- Section: Video Quality & Speed Defaults -->
+        <div class="sheet-section-title">Default Video Settings</div>
+        <div class="settings-grid-2col">
+          <div class="option-select-wrap">
+            <label>Default Quality</label>
+            <select id="settingDefaultQuality" class="sheet-select">
+              <option value="auto" selected>Auto (Highest Available)</option>
+              <option value="1080">1080p (Full HD)</option>
+              <option value="720">720p (HD)</option>
+              <option value="480">480p (SD)</option>
+              <option value="360">360p (Data Saver)</option>
+            </select>
           </div>
-          <p class="settings-desc">
-            Direct streams (.mp4, .m3u8, YouTube, Vimeo) play natively on device with zero cloud dependencies.
-          </p>
+          <div class="option-select-wrap">
+            <label>Default Speed</label>
+            <select id="settingDefaultSpeed" class="sheet-select">
+              <option value="0.5">0.5x</option>
+              <option value="0.75">0.75x</option>
+              <option value="1.0" selected>1.0x (Normal)</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2.0">2.0x</option>
+            </select>
+          </div>
         </div>
 
+        <!-- Section: Audio Language & Subtitles -->
+        <div class="sheet-section-title">Language &amp; Subtitles</div>
+        <div class="settings-grid-2col">
+          <div class="option-select-wrap">
+            <label>Default Audio Language</label>
+            <select id="settingDefaultAudio" class="sheet-select">
+              <option value="default" selected>Default / Original</option>
+              <option value="en">English</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="hi">Hindi</option>
+              <option value="ja">Japanese</option>
+            </select>
+          </div>
+          <div class="option-select-wrap">
+            <label>Default Subtitles</label>
+            <select id="settingDefaultSub" class="sheet-select">
+              <option value="off" selected>Subtitles Off</option>
+              <option value="on">Always On (Auto-detect)</option>
+              <option value="en">English If Available</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section: Volume & Brightness Defaults -->
+        <div class="sheet-section-title">Default Audio &amp; Display Levels</div>
+        <div class="setting-slider-card">
+          <div class="slider-card-header">
+            <span>Default Volume</span>
+            <span id="valSettingVolume" class="slider-badge">100%</span>
+          </div>
+          <input type="range" id="settingDefaultVolume" min="0" max="125" value="100" class="sheet-range-slider">
+        </div>
+
+        <div class="setting-slider-card">
+          <div class="slider-card-header">
+            <span>Default Brightness</span>
+            <span id="valSettingBrightness" class="slider-badge">100%</span>
+          </div>
+          <input type="range" id="settingDefaultBrightness" min="20" max="100" value="100" class="sheet-range-slider">
+        </div>
+
+        <!-- Section: Background Play & Resume Options -->
+        <div class="sheet-section-title">Playback Behavior</div>
+        <div class="setting-toggle-card">
+          <div class="toggle-text-wrap">
+            <span class="toggle-title">Background Play</span>
+            <span class="toggle-subtitle">Keep audio playing when app is minimized or screen is locked</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="settingBackgroundPlay">
+            <span class="slider-toggle round"></span>
+          </label>
+        </div>
+
+        <div class="option-select-wrap" style="margin-top: 4px;">
+          <label>Recent Videos Resume Behavior</label>
+          <select id="settingResumeBehavior" class="sheet-select">
+            <option value="last" selected>Resume from last timestamp</option>
+            <option value="start">Always play from beginning (00:00)</option>
+            <option value="ask">Ask each time</option>
+          </select>
+        </div>
+
+        <!-- Section: Optional LAN Server -->
         <div class="sheet-section-title">LAN Desktop Server (Optional)</div>
         <p class="settings-hint">
           If you run PVP Desktop on your PC, you can enter its Wi-Fi address (e.g. <code>http://192.168.1.15:8000</code>) to access PC extractors.
@@ -526,10 +591,49 @@
           <input type="text" id="localServerInput" class="mobile-input-sm" placeholder="http://127.0.0.1:8000">
           <button id="btnSaveServer" class="btn-save-sm">Save</button>
         </div>
-        <button id="btnResetServer" class="btn-text-subtle" style="margin-top: 8px;">Reset to Default</button>
+        <button id="btnResetServer" class="btn-text-subtle" style="margin-top: 6px;">Reset to Default</button>
 
         <div class="settings-about">
           <span>PVP Mobile v2.0 &bull; Built for Android 12+</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. Show More History Sheet (Full History Viewer) -->
+    <div id="historySheet" class="bottom-sheet hidden">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Playback History</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <div class="sheet-content">
+        <div class="history-sheet-actions">
+          <span id="historyTotalCount" class="history-count-badge">0 videos</span>
+          <button id="btnClearAllHistory" class="btn-text-danger">Clear All History</button>
+        </div>
+        <div id="fullHistoryList" class="full-history-list"></div>
+      </div>
+    </div>
+
+    <!-- 6. Resume Playback Decision Dialog (when 'Ask each time' is selected) -->
+    <div id="resumeModal" class="modal-dialog-backdrop hidden">
+      <div class="modal-dialog-card">
+        <div class="modal-dialog-icon">
+          <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#ff8800" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <h4 class="modal-dialog-title">Resume Playback?</h4>
+        <p id="resumeVideoTitle" class="modal-dialog-desc">Do you want to continue where you left off?</p>
+        <div class="modal-dialog-buttons">
+          <button id="btnResumeLast" class="btn-dialog-primary">
+            ▶ Resume from <span id="resumeTimeLabel">00:00</span>
+          </button>
+          <button id="btnResumeStart" class="btn-dialog-secondary">
+            ⏮ Start from Beginning (00:00)
+          </button>
+          <button id="btnResumeCancel" class="btn-dialog-cancel">Cancel</button>
         </div>
       </div>
     </div>

@@ -1,16 +1,14 @@
 /**
  * PVP Mobile - Client Application Logic (Android 12+ Optimized)
- * 100% Local Playback, Material 3 Modal Bottom Sheets, Gesture HUD,
- * Double-Tap Seek, Swipe Brightness & Volume, and Native Android Integration.
+ * 100% Local Playback, Global Settings Defaults, Background Play,
+ * Bottom History List, Resume from Last Timestamp, and Robust Stream Handling.
  */
 
 // Base URL for API requests (100% local, no cloud dependencies)
 let API_BASE = '';
 if (typeof window !== 'undefined') {
   const savedServer = localStorage.getItem('pvp_local_server_url');
-  if (window.location.protocol === 'file:') {
-    API_BASE = savedServer || 'http://127.0.0.1:8000';
-  } else if (savedServer) {
+  if (savedServer) {
     API_BASE = savedServer;
   }
 }
@@ -38,10 +36,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnClipboardPlay = document.getElementById('btnClipboardPlay');
   const btnClipboardDismiss = document.getElementById('btnClipboardDismiss');
 
-  // DOM: Platforms & History
-  const platformChips = document.querySelectorAll('.platform-chip');
+  // DOM: Bottom History Elements
   const historyList = document.getElementById('historyList');
-  const btnClearHistory = document.getElementById('btnClearHistory');
+  const btnShowAllHistory = document.getElementById('btnShowAllHistory');
 
   // DOM: Video & Embed
   const videoPlayer = document.getElementById('videoPlayer');
@@ -49,6 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const vlcSubtitleOverlay = document.getElementById('vlcSubtitleOverlay');
   const playerLoader = document.getElementById('playerLoader');
   const playerLoaderMsg = document.getElementById('playerLoaderMsg');
+  const playerErrorOverlay = document.getElementById('playerErrorOverlay');
+  const playerErrorMsg = document.getElementById('playerErrorMsg');
+  const btnPlayerErrorBack = document.getElementById('btnPlayerErrorBack');
   const vlcOsd = document.getElementById('vlcOsd');
 
   // DOM: Gesture Feedback Overlays
@@ -95,7 +95,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const subtitleSheet = document.getElementById('subtitleSheet');
   const speedSheet = document.getElementById('speedSheet');
   const settingsSheet = document.getElementById('settingsSheet');
+  const historySheet = document.getElementById('historySheet');
 
+  // DOM: Settings Controls
+  const settingDefaultQuality = document.getElementById('settingDefaultQuality');
+  const settingDefaultSpeed = document.getElementById('settingDefaultSpeed');
+  const settingDefaultAudio = document.getElementById('settingDefaultAudio');
+  const settingDefaultSub = document.getElementById('settingDefaultSub');
+  const settingDefaultVolume = document.getElementById('settingDefaultVolume');
+  const valSettingVolume = document.getElementById('valSettingVolume');
+  const settingDefaultBrightness = document.getElementById('settingDefaultBrightness');
+  const valSettingBrightness = document.getElementById('valSettingBrightness');
+  const settingBackgroundPlay = document.getElementById('settingBackgroundPlay');
+  const settingResumeBehavior = document.getElementById('settingResumeBehavior');
+
+  const localServerInput = document.getElementById('localServerInput');
+  const btnSaveServer = document.getElementById('btnSaveServer');
+  const btnResetServer = document.getElementById('btnResetServer');
+
+  // DOM: Full History Elements
+  const historyTotalCount = document.getElementById('historyTotalCount');
+  const btnClearAllHistory = document.getElementById('btnClearAllHistory');
+  const fullHistoryList = document.getElementById('fullHistoryList');
+
+  // DOM: Resume Modal Dialog
+  const resumeModal = document.getElementById('resumeModal');
+  const resumeVideoTitle = document.getElementById('resumeVideoTitle');
+  const resumeTimeLabel = document.getElementById('resumeTimeLabel');
+  const btnResumeLast = document.getElementById('btnResumeLast');
+  const btnResumeStart = document.getElementById('btnResumeStart');
+  const btnResumeCancel = document.getElementById('btnResumeCancel');
+
+  // Subtitle custom loader controls
   const audioTracksList = document.getElementById('audioTracksList');
   const subtitleTracksList = document.getElementById('subtitleTracksList');
   const btnLoadCustomSub = document.getElementById('btnLoadCustomSub');
@@ -108,10 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const subSizeSelect = document.getElementById('subSizeSelect');
   const subColorSelect = document.getElementById('subColorSelect');
   const speedChips = document.querySelectorAll('.speed-chip');
-
-  const localServerInput = document.getElementById('localServerInput');
-  const btnSaveServer = document.getElementById('btnSaveServer');
-  const btnResetServer = document.getElementById('btnResetServer');
 
   // App State
   let activeView = 'home';
@@ -129,14 +156,122 @@ document.addEventListener('DOMContentLoaded', () => {
   let hudIndicatorTimer = null;
   let isLandscape = false;
   let isFullscreen = false;
+  let pendingResumeItem = null;
 
   // Audio & Subtitle State
-  let availableAudioTracks = [];
   let currentAudioTrack = -1;
-  let availableSubTracks = [];
   let currentSubTrack = -1;
   let customSubtitles = [];
   let subtitleDelayMs = 0;
+
+  // ==========================================
+  // GLOBAL SETTINGS CONFIGURATION
+  // ==========================================
+  const DEFAULT_APP_SETTINGS = {
+    quality: 'auto',
+    speed: '1.0',
+    audio: 'default',
+    sub: 'off',
+    volume: 100,
+    brightness: 100,
+    backgroundPlay: false,
+    resumeBehavior: 'last'
+  };
+
+  let appSettings = { ...DEFAULT_APP_SETTINGS };
+
+  function loadAppSettings() {
+    try {
+      const stored = localStorage.getItem('pvp_app_settings');
+      if (stored) {
+        appSettings = { ...DEFAULT_APP_SETTINGS, ...JSON.parse(stored) };
+      }
+    } catch (_) {}
+
+    // Populate UI inputs
+    if (settingDefaultQuality) settingDefaultQuality.value = appSettings.quality;
+    if (settingDefaultSpeed) settingDefaultSpeed.value = appSettings.speed;
+    if (settingDefaultAudio) settingDefaultAudio.value = appSettings.audio;
+    if (settingDefaultSub) settingDefaultSub.value = appSettings.sub;
+    if (settingDefaultVolume) {
+      settingDefaultVolume.value = appSettings.volume;
+      valSettingVolume.textContent = appSettings.volume + '%';
+    }
+    if (settingDefaultBrightness) {
+      settingDefaultBrightness.value = appSettings.brightness;
+      valSettingBrightness.textContent = appSettings.brightness + '%';
+    }
+    if (settingBackgroundPlay) settingBackgroundPlay.checked = !!appSettings.backgroundPlay;
+    if (settingResumeBehavior) settingResumeBehavior.value = appSettings.resumeBehavior;
+
+    // Apply native bridge background play setting
+    if (window.PVPNative && typeof window.PVPNative.setBackgroundPlay === 'function') {
+      window.PVPNative.setBackgroundPlay(!!appSettings.backgroundPlay);
+    }
+  }
+
+  function saveAppSettings() {
+    try {
+      localStorage.setItem('pvp_app_settings', JSON.stringify(appSettings));
+    } catch (_) {}
+
+    // Sync to native bridge
+    if (window.PVPNative && typeof window.PVPNative.setBackgroundPlay === 'function') {
+      window.PVPNative.setBackgroundPlay(!!appSettings.backgroundPlay);
+    }
+  }
+
+  // Settings change listeners
+  settingDefaultQuality?.addEventListener('change', () => {
+    appSettings.quality = settingDefaultQuality.value;
+    saveAppSettings();
+    triggerHaptic();
+  });
+
+  settingDefaultSpeed?.addEventListener('change', () => {
+    appSettings.speed = settingDefaultSpeed.value;
+    saveAppSettings();
+    triggerHaptic();
+  });
+
+  settingDefaultAudio?.addEventListener('change', () => {
+    appSettings.audio = settingDefaultAudio.value;
+    saveAppSettings();
+    triggerHaptic();
+  });
+
+  settingDefaultSub?.addEventListener('change', () => {
+    appSettings.sub = settingDefaultSub.value;
+    saveAppSettings();
+    triggerHaptic();
+  });
+
+  settingDefaultVolume?.addEventListener('input', () => {
+    appSettings.volume = parseInt(settingDefaultVolume.value, 10);
+    valSettingVolume.textContent = appSettings.volume + '%';
+    saveAppSettings();
+  });
+
+  settingDefaultBrightness?.addEventListener('input', () => {
+    appSettings.brightness = parseInt(settingDefaultBrightness.value, 10);
+    valSettingBrightness.textContent = appSettings.brightness + '%';
+    saveAppSettings();
+  });
+
+  settingBackgroundPlay?.addEventListener('change', () => {
+    appSettings.backgroundPlay = settingBackgroundPlay.checked;
+    saveAppSettings();
+    triggerHaptic();
+    showOsd(appSettings.backgroundPlay ? 'Background Play: Enabled' : 'Background Play: Disabled');
+  });
+
+  settingResumeBehavior?.addEventListener('change', () => {
+    appSettings.resumeBehavior = settingResumeBehavior.value;
+    saveAppSettings();
+    triggerHaptic();
+  });
+
+  loadAppSettings();
 
   // Native Android Helpers
   function triggerHaptic() {
@@ -207,6 +342,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.handleAndroidBack = function() {
+    // If resume modal is open, close it
+    if (resumeModal && !resumeModal.classList.contains('hidden')) {
+      closeResumeModal();
+      triggerHaptic();
+      return true;
+    }
     // If a bottom sheet is open, close it first
     if (activeSheet) {
       closeActiveSheet();
@@ -219,11 +360,16 @@ document.addEventListener('DOMContentLoaded', () => {
       triggerHaptic();
       return true;
     }
-    // If on home view, return false to allow Android to minimize/exit
+    // On home view, return false to allow Android to minimize/exit
     return false;
   };
 
   btnPlayerBack.addEventListener('click', () => {
+    triggerHaptic();
+    switchView('home');
+  });
+
+  btnPlayerErrorBack?.addEventListener('click', () => {
     triggerHaptic();
     switchView('home');
   });
@@ -302,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!text || (!text.startsWith('http://') && !text.startsWith('https://'))) return;
       if (text === dismissedClip || text === lastCheckedClip) return;
 
-      const isVideoLink = /(?:youtube\.com|youtu\.be|instagram\.com|tiktok\.com|twitter\.com|x\.com|twitch\.tv|vimeo\.com|\.mp4|\.m3u8|\.mkv|\.mov|\.webm|\/video\/|\/reel\/)/i.test(text);
+      const isVideoLink = /(?:youtube\.com|youtu\.be|instagram\.com|tiktok\.com|twitter\.com|x\.com|twitch\.tv|vimeo\.com|dailymotion\.com|\.mp4|\.m3u8|\.mkv|\.mov|\.webm|\/video\/|\/reel\/)/i.test(text);
       if (isVideoLink) {
         lastCheckedClip = text;
         clipboardUrlText.textContent = text.length > 40 ? text.slice(0, 38) + '...' : text;
@@ -331,39 +477,33 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(checkClipboardForVideo, 500);
   });
 
-  // Platform quick chips
-  platformChips.forEach(chip => {
-    chip.addEventListener('click', () => {
-      triggerHaptic();
-      urlInput.focus();
-      const platform = chip.dataset.platform;
-      const sampleMap = {
-        'hls': 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-        'direct': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
-      };
-      if (sampleMap[platform]) {
-        urlInput.value = sampleMap[platform];
-        btnClearInput.classList.remove('hidden');
-      }
-    });
-  });
-
   function showHomeError(msg) {
     homeErrorMsg.textContent = msg;
     homeErrorMsg.classList.remove('hidden');
   }
 
   // ==========================================
-  // MEDIA EXTRACTION & STREAM SUBMIT
+  // ROBUST STREAM URL EXTRACTION
   // ==========================================
+  function extractYouTubeId(url) {
+    if (!url) return null;
+    const str = url.trim();
+    const shortMatch = str.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/i);
+    if (shortMatch) return shortMatch[1];
+    const pathMatch = str.match(/(?:\/shorts\/|\/embed\/|\/v\/|\/live\/)([a-zA-Z0-9_-]{11})/i);
+    if (pathMatch) return pathMatch[1];
+    const queryMatch = str.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
+    if (queryMatch) return queryMatch[1];
+    return null;
+  }
+
   function resolveMediaClientSide(url, fallbackTitle) {
     if (!url) return null;
     const rawUrl = url.trim();
 
-    // YouTube
-    const isYouTube = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
-    if (isYouTube) {
-      const ytId = isYouTube[1];
+    // 1. YouTube (Supports watch, shorts, live, embed, youtu.be, mobile URLs)
+    const ytId = extractYouTubeId(rawUrl);
+    if (ytId) {
       const ytOrigin = (window.location.origin && !window.location.origin.startsWith('file:') && window.location.origin !== 'null')
         ? window.location.origin
         : 'https://appassets.androidplatform.net';
@@ -374,15 +514,15 @@ document.addEventListener('DOMContentLoaded', () => {
         qualities: [{
           label: 'Auto (Embed)',
           type: 'embed',
-          video_url: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}&widget_referrer=${encodeURIComponent(ytOrigin)}&rel=0&playsinline=1`
+          video_url: `https://www.youtube.com/embed/${ytId}?autoplay=1&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}&widget_referrer=${encodeURIComponent(ytOrigin)}&rel=0&playsinline=1`
         }],
         default_quality_index: 0
       };
     }
 
-    // Vimeo
-    const isVimeo = /vimeo\.com\/(?:video\/)?([0-9]+)/.exec(rawUrl);
-    if (isVimeo) {
+    // 2. Vimeo
+    const vimeoMatch = rawUrl.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
+    if (vimeoMatch) {
       return {
         success: true,
         title: fallbackTitle || 'Vimeo Video',
@@ -390,16 +530,50 @@ document.addEventListener('DOMContentLoaded', () => {
         qualities: [{
           label: 'Auto (Embed)',
           type: 'embed',
-          video_url: `https://player.vimeo.com/video/${isVimeo[1]}?autoplay=1`
+          video_url: `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`
         }],
         default_quality_index: 0
       };
     }
 
-    // Direct Media / HLS Stream (.m3u8, .mp4, etc.)
+    // 3. Dailymotion
+    const dmMatch = rawUrl.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/i);
+    if (dmMatch) {
+      return {
+        success: true,
+        title: fallbackTitle || 'Dailymotion Video',
+        is_embed_fallback: true,
+        qualities: [{
+          label: 'Auto (Embed)',
+          type: 'embed',
+          video_url: `https://www.dailymotion.com/embed/video/${dmMatch[1]}?autoplay=1`
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    // 4. Streamable
+    const streamableMatch = rawUrl.match(/streamable\.com\/([a-zA-Z0-9]+)/i);
+    if (streamableMatch) {
+      return {
+        success: true,
+        title: fallbackTitle || 'Streamable Video',
+        is_embed_fallback: true,
+        qualities: [{
+          label: 'Auto (Embed)',
+          type: 'embed',
+          video_url: `https://streamable.com/e/${streamableMatch[1]}?autoplay=1`
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    // 5. Direct Media / HLS Stream (.m3u8, .mp4, .webm, etc.)
     const isHls = /\.m3u8($|\?)/i.test(rawUrl);
-    const isDirect = isHls || /\.(mp4|webm|mov|mkv|ogg|mp3|flv|avi)($|\?)/i.test(rawUrl);
-    if (isDirect || rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+    const isDirectExt = /\.(mp4|webm|mov|mkv|ogg|mp3|flv|avi)($|\?)/i.test(rawUrl);
+    const isKnownMediaEndpoint = /googlevideo\.com\/videoplayback/i.test(rawUrl) || /\/video\//i.test(rawUrl);
+
+    if (isHls || isDirectExt || isKnownMediaEndpoint) {
       const cleanName = rawUrl.split('?')[0].split('/').pop() || 'Media Stream';
       return {
         success: true,
@@ -414,11 +588,27 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
+    // 6. Generic direct HTTP link check
+    if (rawUrl.startsWith('http://') || rawUrl.startsWith('https://')) {
+      const cleanName = rawUrl.split('?')[0].split('/').pop() || 'Media Stream';
+      return {
+        success: true,
+        title: fallbackTitle || decodeURIComponent(cleanName),
+        qualities: [{
+          label: 'Direct Stream',
+          type: 'direct',
+          video_url: rawUrl,
+          is_hls: isHls
+        }],
+        default_quality_index: 0
+      };
+    }
+
     return null;
   }
 
-  async function handleStreamSubmit() {
-    const rawUrl = urlInput.value.trim();
+  async function handleStreamSubmit(customUrl, startPosition) {
+    const rawUrl = (customUrl || urlInput.value).trim();
     if (!rawUrl) {
       showHomeError('Please paste or enter a video URL');
       return;
@@ -430,46 +620,45 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       let finalData = null;
 
-      // 1. Try local FastAPI server if reachable
-      try {
-        const timeoutController = new AbortController();
-        const timeoutId = setTimeout(() => timeoutController.abort(), 4000);
-        const res = await fetch(API_BASE + '/api/extract', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: rawUrl }),
-          signal: timeoutController.signal
-        });
-        clearTimeout(timeoutId);
+      // 1. Only query local backend server if configured with a remote/LAN IP
+      if (API_BASE && !API_BASE.includes('127.0.0.1') && !API_BASE.includes('localhost')) {
+        try {
+          const timeoutController = new AbortController();
+          const timeoutId = setTimeout(() => timeoutController.abort(), 3000);
+          const res = await fetch(API_BASE + '/api/extract', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: rawUrl }),
+            signal: timeoutController.signal
+          });
+          clearTimeout(timeoutId);
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data && (data.success || data.qualities?.length)) {
-            finalData = data;
+          if (res.ok) {
+            const data = await res.json();
+            if (data && (data.success || data.qualities?.length)) {
+              finalData = data;
+            }
           }
-        }
-      } catch (_) {}
-
-      // 2. Client-side fallback resolution (100% offline & local)
-      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
-      if (finalData && isYouTubeUrl && (!finalData.qualities?.length || (finalData.qualities?.length === 1 && finalData.qualities[0].label === 'Direct'))) {
-        finalData = null;
+        } catch (_) {}
       }
 
+      // 2. Client-side fallback resolution
       if (!finalData) {
         finalData = resolveMediaClientSide(rawUrl);
       }
 
       if (!finalData) {
-        throw new Error('Unsupported video link. Please verify URL format.');
+        throw new Error('Unsupported video link. Enter a direct stream (.mp4, .m3u8), YouTube, or Vimeo URL.');
       }
 
       currentPlayingUrl = rawUrl;
       currentPlayingTitle = finalData.title || 'Video Stream';
-      saveToHistory(rawUrl, currentPlayingTitle);
+
+      // Record in history
+      saveToHistory(rawUrl, currentPlayingTitle, startPosition || 0);
 
       switchView('player');
-      loadMedia(finalData);
+      loadMedia(finalData, startPosition);
 
     } catch (err) {
       showHomeError(err.message || 'Could not stream video. Please check the link.');
@@ -493,31 +682,36 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // PLAYBACK ENGINE (HLS, HTML5 VIDEO, EMBED)
+  // PLAYBACK ENGINE WITH DEFAULT SETTINGS
   // ==========================================
-  function loadMedia(data) {
+  function loadMedia(data, resumeTime) {
     playerTitle.textContent = data.title || 'PVP Video Player';
     showPlayerLoader('Connecting media...');
+    hidePlayerError();
     resetPlayerState();
+
+    // Apply default screen brightness setting
+    const defaultBright = (appSettings.brightness || 100) / 100;
+    currentBrightness = defaultBright;
+    playerCanvas.style.filter = `brightness(${currentBrightness})`;
 
     const quality = (data.qualities && data.qualities[0]) ? data.qualities[0] : null;
 
     if (!quality) {
-      showOsd('Error: No playable stream found');
+      showPlayerError('Error: No playable stream found.');
       hidePlayerLoader();
       return;
     }
 
     if (quality.type === 'embed' || data.is_embed_fallback) {
-      // Embed mode (YouTube iframe)
+      // Embed mode (YouTube, Vimeo, etc.)
       videoPlayer.classList.add('hidden');
       videoPlayer.pause();
       playerCanvas.classList.add('embed-active');
       embedFrame.src = quality.video_url;
       embedFrame.classList.remove('hidden');
       hidePlayerLoader();
-      updatePlayPauseButton(true);
-      showOsd('Streaming YouTube Embed');
+      showOsd('Streaming in Embed Mode');
       return;
     }
 
@@ -526,6 +720,17 @@ document.addEventListener('DOMContentLoaded', () => {
     embedFrame.classList.add('hidden');
     embedFrame.src = '';
     videoPlayer.classList.remove('hidden');
+
+    // Apply default playback speed setting
+    const defaultSpeed = parseFloat(appSettings.speed || '1.0');
+    currentPlaybackRate = defaultSpeed;
+    videoPlayer.playbackRate = defaultSpeed;
+    hudSpeedLabel.textContent = `${defaultSpeed}x`;
+
+    // Apply default volume setting
+    const defaultVol = Math.max(0, Math.min(1.0, (appSettings.volume || 100) / 100));
+    videoPlayer.volume = defaultVol;
+    videoPlayer.muted = false;
 
     const streamUrl = quality.video_url;
     const isHls = quality.is_hls || /\.m3u8($|\?)/i.test(streamUrl);
@@ -544,7 +749,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
       hlsInstance.on(Hls.Events.MANIFEST_PARSED, (evt, manifest) => {
         setupHlsAudioAndSubs(manifest);
+
+        // Apply default video quality preference
+        if (appSettings.quality !== 'auto' && hlsInstance.levels && hlsInstance.levels.length > 0) {
+          const targetHeight = parseInt(appSettings.quality, 10);
+          let matchedIdx = -1;
+          hlsInstance.levels.forEach((lvl, idx) => {
+            if (lvl.height === targetHeight) matchedIdx = idx;
+          });
+          if (matchedIdx !== -1) {
+            hlsInstance.currentLevel = matchedIdx;
+          }
+        }
+
+        // Apply default audio language preference
+        if (appSettings.audio !== 'default' && hlsInstance.audioTracks && hlsInstance.audioTracks.length > 0) {
+          const pref = appSettings.audio.toLowerCase();
+          hlsInstance.audioTracks.forEach((tr, idx) => {
+            if ((tr.lang && tr.lang.toLowerCase().includes(pref)) || (tr.name && tr.name.toLowerCase().includes(pref))) {
+              hlsInstance.audioTrack = idx;
+              currentAudioTrack = idx;
+            }
+          });
+        }
+
+        // Apply default subtitle preference
+        if (appSettings.sub === 'on' && hlsInstance.subtitleTracks && hlsInstance.subtitleTracks.length > 0) {
+          hlsInstance.subtitleTrack = 0;
+          currentSubTrack = 0;
+        }
+
         hidePlayerLoader();
+
+        // Resume position if specified
+        if (resumeTime && resumeTime > 0) {
+          videoPlayer.currentTime = resumeTime;
+          showOsd(`Resumed at ${formatTime(resumeTime)}`);
+        }
+
         videoPlayer.play().catch(() => {});
       });
 
@@ -559,6 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
               break;
             default:
               hlsInstance.destroy();
+              showPlayerError('HLS stream failed to load.');
               break;
           }
         }
@@ -567,6 +810,12 @@ document.addEventListener('DOMContentLoaded', () => {
       // Native HTML5 Video playback
       videoPlayer.src = streamUrl;
       videoPlayer.load();
+
+      if (resumeTime && resumeTime > 0) {
+        videoPlayer.currentTime = resumeTime;
+        showOsd(`Resumed at ${formatTime(resumeTime)}`);
+      }
+
       videoPlayer.play().catch(() => {});
     }
   }
@@ -582,9 +831,15 @@ document.addEventListener('DOMContentLoaded', () => {
     currentMediaDuration = 0;
     vlcSubtitleOverlay.textContent = '';
     vlcSubtitleOverlay.classList.add('hidden');
+    hidePlayerError();
   }
 
   function stopPlayback() {
+    // Save last played timestamp before stopping
+    if (currentPlayingUrl && videoPlayer.currentTime > 5) {
+      updateHistoryTimestamp(currentPlayingUrl, Math.floor(videoPlayer.currentTime), Math.floor(videoPlayer.duration || currentMediaDuration));
+    }
+
     playerCanvas.classList.remove('embed-active');
     if (hlsInstance) {
       hlsInstance.destroy();
@@ -595,14 +850,39 @@ document.addEventListener('DOMContentLoaded', () => {
     videoPlayer.load();
     embedFrame.src = '';
     embedFrame.classList.add('hidden');
+    hidePlayerError();
+  }
+
+  function showPlayerError(msg) {
+    playerErrorMsg.textContent = msg || 'The media format or stream URL could not be loaded.';
+    playerErrorOverlay.classList.remove('hidden');
+    hidePlayerLoader();
+  }
+
+  function hidePlayerError() {
+    playerErrorOverlay.classList.add('hidden');
   }
 
   // Video Event Listeners
+  videoPlayer.addEventListener('error', () => {
+    hidePlayerLoader();
+    const err = videoPlayer.error;
+    let msg = 'The stream could not be loaded.';
+    if (err) {
+      if (err.code === 2) msg = 'Network error while loading video stream.';
+      else if (err.code === 3) msg = 'Media decode error: format unsupported.';
+      else if (err.code === 4) msg = 'Format not supported or stream unreachable.';
+    }
+    showPlayerError(msg);
+  });
+
   videoPlayer.addEventListener('loadedmetadata', () => {
     currentMediaDuration = videoPlayer.duration || 0;
     timeTotal.textContent = formatTime(currentMediaDuration);
     hidePlayerLoader();
   });
+
+  let lastSavedHistoryTime = 0;
 
   videoPlayer.addEventListener('timeupdate', () => {
     if (isSeeking) return;
@@ -631,15 +911,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Custom Subtitle Sync
     renderCustomSubtitles(cur);
+
+    // Save playback position to history every 3 seconds
+    const now = Date.now();
+    if (now - lastSavedHistoryTime > 3000 && cur > 3) {
+      lastSavedHistoryTime = now;
+      updateHistoryTimestamp(currentPlayingUrl, Math.floor(cur), Math.floor(dur));
+    }
   });
 
   videoPlayer.addEventListener('play', () => {
     updatePlayPauseButton(true);
     hidePlayerLoader();
+    hidePlayerError();
   });
 
   videoPlayer.addEventListener('pause', () => {
     updatePlayPauseButton(false);
+    if (currentPlayingUrl && videoPlayer.currentTime > 5) {
+      updateHistoryTimestamp(currentPlayingUrl, Math.floor(videoPlayer.currentTime), Math.floor(videoPlayer.duration || currentMediaDuration));
+    }
   });
 
   videoPlayer.addEventListener('waiting', () => {
@@ -648,10 +939,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   videoPlayer.addEventListener('playing', () => {
     hidePlayerLoader();
+    hidePlayerError();
   });
 
   videoPlayer.addEventListener('ended', () => {
     updatePlayPauseButton(false);
+    if (currentPlayingUrl) {
+      updateHistoryTimestamp(currentPlayingUrl, 0, Math.floor(videoPlayer.duration || currentMediaDuration));
+    }
   });
 
   function updatePlayPauseButton(isPlaying) {
@@ -763,7 +1058,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let touchStartX = 0;
   let touchStartVal = 0;
   let isSwiping = false;
-  let swipeTarget = null; // 'brightness' | 'volume'
+  let swipeTarget = null;
 
   playerGestureZone.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) return;
@@ -783,10 +1078,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const deltaY = touchStartY - touch.clientY;
     const deltaX = Math.abs(touch.clientX - touchStartX);
 
-    // Only initiate vertical swipe if vertical movement > 20px and greater than horizontal movement
     if (Math.abs(deltaY) > 20 && Math.abs(deltaY) > deltaX) {
       isSwiping = true;
-      const change = deltaY / 300; // sensitivity
+      const change = deltaY / 300;
 
       if (swipeTarget === 'brightness') {
         currentBrightness = Math.max(0.15, Math.min(1.0, touchStartVal + change));
@@ -807,13 +1101,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   playerGestureZone.addEventListener('touchend', (e) => {
     if (!isSwiping) {
-      // Tap detected
       const touchX = e.changedTouches[0].clientX;
       const screenWidth = window.innerWidth;
       const now = Date.now();
 
       if (touchX < screenWidth * 0.35) {
-        // Left side tap -> Check double tap
         if (now - lastTapLeftTime < 320) {
           seekRelative(-10);
           showRipple(rippleLeft);
@@ -822,7 +1114,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         lastTapLeftTime = now;
       } else if (touchX > screenWidth * 0.65) {
-        // Right side tap -> Check double tap
         if (now - lastTapRightTime < 320) {
           seekRelative(10);
           showRipple(rippleRight);
@@ -832,14 +1123,13 @@ document.addEventListener('DOMContentLoaded', () => {
         lastTapRightTime = now;
       }
 
-      // Single tap center -> toggle HUD
       toggleHud();
     }
   });
 
   function showRipple(rippleEl) {
     rippleEl.classList.remove('active');
-    void rippleEl.offsetWidth; // trigger reflow
+    void rippleEl.offsetWidth;
     rippleEl.classList.add('active');
     setTimeout(() => rippleEl.classList.remove('active'), 500);
   }
@@ -875,8 +1165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  playerHud.addEventListener('click', (e) => {
-    // Keep HUD visible on interaction
+  playerHud.addEventListener('click', () => {
     showHud();
   });
 
@@ -929,7 +1218,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function setupHlsAudioAndSubs(manifest) {
-    // Audio Tracks
     audioTracksList.innerHTML = '';
     const defItem = document.createElement('div');
     defItem.className = `sheet-list-item ${currentAudioTrack === -1 ? 'active' : ''}`;
@@ -960,7 +1248,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    // Subtitle Tracks
     subtitleTracksList.innerHTML = '';
     const offItem = document.createElement('div');
     offItem.className = `sheet-list-item ${currentSubTrack === -1 ? 'active' : ''}`;
@@ -1110,7 +1397,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btnOpenSettings.addEventListener('click', () => {
     openSheet(settingsSheet);
     if (localServerInput) {
-      localServerInput.value = localStorage.getItem('pvp_local_server_url') || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : window.location.origin);
+      localServerInput.value = localStorage.getItem('pvp_local_server_url') || '';
     }
   });
 
@@ -1122,7 +1409,7 @@ document.addEventListener('DOMContentLoaded', () => {
       API_BASE = val;
     } else {
       localStorage.removeItem('pvp_local_server_url');
-      API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+      API_BASE = '';
     }
     closeActiveSheet();
     showOsd('Server settings saved');
@@ -1131,28 +1418,56 @@ document.addEventListener('DOMContentLoaded', () => {
   btnResetServer.addEventListener('click', () => {
     triggerHaptic();
     localStorage.removeItem('pvp_local_server_url');
-    API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
-    localServerInput.value = 'http://127.0.0.1:8000';
-    showOsd('Reset to default server');
+    API_BASE = '';
+    localServerInput.value = '';
+    showOsd('Reset server to standalone');
+  });
+
+  // 5. Full History Sheet
+  btnShowAllHistory?.addEventListener('click', () => {
+    triggerHaptic();
+    openSheet(historySheet);
+    renderFullHistoryList();
+  });
+
+  btnClearAllHistory?.addEventListener('click', () => {
+    triggerHaptic();
+    localStorage.removeItem('pvp_mobile_history');
+    renderHistory();
+    renderFullHistoryList();
+    closeActiveSheet();
+    showOsd('History cleared');
   });
 
   // ==========================================
-  // PLAYBACK HISTORY MANAGEMENT
+  // PLAYBACK HISTORY MANAGEMENT & RESUME
   // ==========================================
-  function saveToHistory(url, title) {
+  function saveToHistory(url, title, timestamp) {
     try {
       let history = JSON.parse(localStorage.getItem('pvp_mobile_history') || '[]');
-      // Remove duplicate if exists
+      const existing = history.find(item => item.url === url);
       history = history.filter(item => item.url !== url);
-      // Prepend to top
       history.unshift({
         url: url,
         title: title || 'Streamed Video',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        lastTimestamp: timestamp !== undefined ? timestamp : (existing ? existing.lastTimestamp : 0),
+        duration: existing ? existing.duration : 0
       });
-      // Cap at 15 items
-      if (history.length > 15) history = history.slice(0, 15);
+      if (history.length > 30) history = history.slice(0, 30);
       localStorage.setItem('pvp_mobile_history', JSON.stringify(history));
+    } catch (_) {}
+  }
+
+  function updateHistoryTimestamp(url, currentTime, duration) {
+    try {
+      let history = JSON.parse(localStorage.getItem('pvp_mobile_history') || '[]');
+      const item = history.find(i => i.url === url);
+      if (item) {
+        item.lastTimestamp = Math.floor(currentTime);
+        if (duration > 0) item.duration = Math.floor(duration);
+        localStorage.setItem('pvp_mobile_history', JSON.stringify(history));
+      }
     } catch (_) {}
   }
 
@@ -1162,56 +1477,173 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!history || history.length === 0) {
         historyList.innerHTML = `
           <div class="history-empty">
-            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
               <circle cx="12" cy="12" r="10"></circle>
               <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
             <p>No recent streams yet</p>
             <span>Played videos will appear here for fast re-streaming</span>
           </div>`;
-        btnClearHistory.classList.add('hidden');
+        btnShowAllHistory?.classList.add('hidden');
         return;
       }
 
-      btnClearHistory.classList.remove('hidden');
+      // Show up to 3 recent items at the bottom of the home screen
+      const previewItems = history.slice(0, 3);
       historyList.innerHTML = '';
-      history.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'history-item';
-        row.innerHTML = `
-          <div class="history-icon-box">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-          </div>
-          <div class="history-details">
-            <span class="history-title">${escapeHtml(item.title)}</span>
-            <span class="history-meta">${formatRelativeTime(item.timestamp)}</span>
-          </div>
-          <div class="history-play-btn">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-          </div>`;
-        row.addEventListener('click', () => {
-          triggerHaptic();
-          urlInput.value = item.url;
-          btnClearInput.classList.remove('hidden');
-          handleStreamSubmit();
-        });
+      previewItems.forEach(item => {
+        const row = createHistoryRowElement(item);
         historyList.appendChild(row);
+      });
+
+      // Show more history button if history has items
+      if (btnShowAllHistory) {
+        btnShowAllHistory.textContent = `Show more history (${history.length} items)`;
+        btnShowAllHistory.classList.remove('hidden');
+      }
+    } catch (_) {}
+  }
+
+  function renderFullHistoryList() {
+    try {
+      const history = JSON.parse(localStorage.getItem('pvp_mobile_history') || '[]');
+      if (historyTotalCount) {
+        historyTotalCount.textContent = `${history.length} video${history.length === 1 ? '' : 's'}`;
+      }
+      if (!history || history.length === 0) {
+        fullHistoryList.innerHTML = `
+          <div class="history-empty">
+            <p>History is empty</p>
+          </div>`;
+        return;
+      }
+      fullHistoryList.innerHTML = '';
+      history.forEach((item, index) => {
+        const row = createHistoryRowElement(item, true, index);
+        fullHistoryList.appendChild(row);
       });
     } catch (_) {}
   }
 
-  btnClearHistory.addEventListener('click', () => {
+  function createHistoryRowElement(item, isFullList, index) {
+    const row = document.createElement('div');
+    row.className = 'history-item';
+
+    const lastTime = item.lastTimestamp || 0;
+    const dur = item.duration || 0;
+    let progressBadge = '';
+    if (lastTime > 5 && dur > 0) {
+      progressBadge = `<span style="color:#ffaa00; margin-left: 6px;">▶ ${formatTime(lastTime)} / ${formatTime(dur)}</span>`;
+    } else if (lastTime > 5) {
+      progressBadge = `<span style="color:#ffaa00; margin-left: 6px;">▶ ${formatTime(lastTime)}</span>`;
+    }
+
+    row.innerHTML = `
+      <div class="history-icon-box">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </div>
+      <div class="history-details">
+        <span class="history-title">${escapeHtml(item.title)}</span>
+        <span class="history-meta">${formatRelativeTime(item.timestamp)} ${progressBadge}</span>
+      </div>
+      ${isFullList ? `<button class="history-item-del-btn" title="Delete from history">&times;</button>` : `
+      <div class="history-play-btn">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+      </div>`}`;
+
+    row.addEventListener('click', (e) => {
+      if (e.target.classList.contains('history-item-del-btn')) {
+        e.stopPropagation();
+        deleteHistoryItem(item.url);
+        return;
+      }
+      triggerHaptic();
+      onRecentItemClicked(item);
+    });
+
+    return row;
+  }
+
+  function deleteHistoryItem(url) {
+    try {
+      let history = JSON.parse(localStorage.getItem('pvp_mobile_history') || '[]');
+      history = history.filter(item => item.url !== url);
+      localStorage.setItem('pvp_mobile_history', JSON.stringify(history));
+      renderHistory();
+      renderFullHistoryList();
+    } catch (_) {}
+  }
+
+  // Handle clicking a recent video: Respect user setting (last / start / ask)
+  function onRecentItemClicked(item) {
+    const resumeMode = appSettings.resumeBehavior || 'last';
+    const lastTime = item.lastTimestamp || 0;
+
+    if (resumeMode === 'ask' && lastTime > 5) {
+      // Show Resume Decision Modal
+      pendingResumeItem = item;
+      resumeVideoTitle.textContent = item.title;
+      resumeTimeLabel.textContent = formatTime(lastTime);
+      resumeModal.classList.remove('hidden');
+      return;
+    }
+
+    if (resumeMode === 'last' && lastTime > 5) {
+      // Resume from last timestamp
+      closeActiveSheet();
+      urlInput.value = item.url;
+      btnClearInput.classList.remove('hidden');
+      handleStreamSubmit(item.url, lastTime);
+    } else {
+      // Start from beginning (00:00)
+      closeActiveSheet();
+      urlInput.value = item.url;
+      btnClearInput.classList.remove('hidden');
+      handleStreamSubmit(item.url, 0);
+    }
+  }
+
+  // Resume Modal buttons
+  btnResumeLast?.addEventListener('click', () => {
     triggerHaptic();
-    localStorage.removeItem('pvp_mobile_history');
-    renderHistory();
+    if (pendingResumeItem) {
+      const item = pendingResumeItem;
+      closeResumeModal();
+      closeActiveSheet();
+      urlInput.value = item.url;
+      btnClearInput.classList.remove('hidden');
+      handleStreamSubmit(item.url, item.lastTimestamp || 0);
+    }
   });
 
+  btnResumeStart?.addEventListener('click', () => {
+    triggerHaptic();
+    if (pendingResumeItem) {
+      const item = pendingResumeItem;
+      closeResumeModal();
+      closeActiveSheet();
+      urlInput.value = item.url;
+      btnClearInput.classList.remove('hidden');
+      handleStreamSubmit(item.url, 0);
+    }
+  });
+
+  btnResumeCancel?.addEventListener('click', () => {
+    triggerHaptic();
+    closeResumeModal();
+  });
+
+  function closeResumeModal() {
+    resumeModal.classList.add('hidden');
+    pendingResumeItem = null;
+  }
+
   // ==========================================
-  // UTILITIES & GLOBAL WINDOW EXPORTS
+  // UTILITIES & GLOBAL EXPORTS
   // ==========================================
   function formatTime(seconds) {
     if (!seconds || isNaN(seconds) || seconds < 0) return '00:00';

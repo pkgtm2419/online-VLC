@@ -57,8 +57,18 @@ class MainActivity : AppCompatActivity() {
         handleIntent(intent)
     }
 
+    private var isBackgroundPlayEnabled = false
+
+    override fun onPause() {
+        super.onPause()
+        if (!isBackgroundPlayEnabled) {
+            webView.onPause()
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        webView.onResume()
         checkClipboard()
     }
 
@@ -374,6 +384,13 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 }
+            }
+        }
+
+        @JavascriptInterface
+        fun setBackgroundPlay(enabled: Boolean) {
+            activity.runOnUiThread {
+                activity.isBackgroundPlayEnabled = enabled
             }
         }
 
