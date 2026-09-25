@@ -72,6 +72,11 @@ function createPvpButton(getVideoUrlFn) {
       alert('Could not determine video URL for PVP.');
       return;
     }
+    // Protocol validation: only permit safe HTTP and HTTPS protocols
+    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+      alert('PVP only supports HTTP and HTTPS streaming URLs.');
+      return;
+    }
     const targetUrl = chrome.runtime.getURL(`player/player.html?url=${encodeURIComponent(finalUrl)}`);
     window.open(targetUrl, '_blank');
   });

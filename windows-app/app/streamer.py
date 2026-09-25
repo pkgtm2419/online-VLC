@@ -7,6 +7,7 @@ and on-the-fly zero-reencode FFmpeg muxing for paired video + audio streams.
 import os
 import subprocess
 import urllib.parse
+import ipaddress
 from typing import AsyncGenerator
 import httpx
 from fastapi import Request, Response, HTTPException
@@ -21,11 +22,48 @@ DEFAULT_HEADERS = {
     'Accept-Language': 'en-US,en;q=0.9',
 }
 
+BLOCKED_HOSTNAMES = {
+    "localhost", "metadata.google.internal", "instance-data", "169.254.169.254"
+}
+
+def validate_stream_url(url_str: str) -> str:
+    """
+    Validates stream URL to prevent SSRF and unsafe schemes.
+    Only HTTP and HTTPS protocols are permitted.
+    Private cloud metadata services and loopback interfaces are blocked.
+    """
+    if not url_str or not isinstance(url_str, str):
+        raise HTTPException(status_code=400, detail="Invalid URL format.")
+    
+    url_str = url_str.strip()
+    parsed = urllib.parse.urlparse(url_str)
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="Only HTTP and HTTPS stream protocols are allowed.")
+    
+    hostname = (parsed.hostname or "").lower()
+    if not hostname:
+        raise HTTPException(status_code=400, detail="Missing hostname in stream URL.")
+    
+    if hostname in BLOCKED_HOSTNAMES or hostname.endswith(".localhost"):
+        raise HTTPException(status_code=403, detail="Access to loopback or cloud metadata endpoints is forbidden.")
+    
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_link_local:
+            raise HTTPException(status_code=403, detail="Link-local addresses are not allowed.")
+        if ip.is_loopback:
+            raise HTTPException(status_code=403, detail="Loopback addresses are not allowed.")
+    except ValueError:
+        pass
+
+    return url_str
+
 async def proxy_stream(url: str, request: Request) -> Response:
     """
     Proxies a video stream to the browser, forwarding Range headers for fast seeking
     and setting CORS headers to allow seamless playback.
     """
+    url = validate_stream_url(url)
     client = httpx.AsyncClient(follow_redirects=True, timeout=30.0)
     req_headers = dict(DEFAULT_HEADERS)
     
@@ -96,6 +134,8 @@ def stream_muxed_video(video_url: str, audio_url: str, start: float = 0.0) -> St
     Mux separate video and audio streams in real-time using FFmpeg with stream copy (-c:v copy).
     Uses proper browser User-Agent to prevent 403 Forbidden from CDN servers.
     """
+    video_url = validate_stream_url(video_url)
+    audio_url = validate_stream_url(audio_url)
     seek_str = str(max(0.0, start))
     
     cmd = [

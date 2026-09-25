@@ -488,11 +488,24 @@ document.addEventListener('DOMContentLoaded', () => {
     currentPlaylist.forEach((item, idx) => {
       const row = document.createElement('div');
       row.className = `playlist-item ${idx === currentTrackIndex ? 'active' : ''}`;
-      row.innerHTML = `
-        <span class="col-num">${idx + 1}</span>
-        <span class="col-title" title="${item.title}">${item.title}</span>
-        <span class="col-dur">${item.duration_str || '--:--'}</span>
-      `;
+      
+      const colNum = document.createElement('span');
+      colNum.className = 'col-num';
+      colNum.textContent = String(idx + 1);
+
+      const colTitle = document.createElement('span');
+      colTitle.className = 'col-title';
+      colTitle.title = item.title || 'Track';
+      colTitle.textContent = item.title || 'Track';
+
+      const colDur = document.createElement('span');
+      colDur.className = 'col-dur';
+      colDur.textContent = item.duration_str || '--:--';
+
+      row.appendChild(colNum);
+      row.appendChild(colTitle);
+      row.appendChild(colDur);
+
       row.addEventListener('click', () => {
         playTrackByIndex(idx);
       });

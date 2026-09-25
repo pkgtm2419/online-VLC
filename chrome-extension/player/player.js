@@ -85,6 +85,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!url) return;
     const cleanUrl = url.trim();
 
+    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      showOsd('Invalid URL: Only HTTP(S) supported');
+      return;
+    }
+
     stopPlayback();
     coneScreen.classList.add('hidden');
 

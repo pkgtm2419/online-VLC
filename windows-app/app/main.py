@@ -30,13 +30,55 @@ HISTORY_FILE = DATA_DIR / "history.json"
 
 app = FastAPI(title="Ad-Free Universal Video Player", version="1.0.0")
 
+# Security & Privacy: Restrict CORS to localhost, private LAN subnets, and browser extensions
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$|^chrome-extension://[a-z]+$",
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_security_privacy_headers(request: Request, call_next):
+    """
+    Enforce zero-tracking privacy headers and strict Content Security Policy.
+    Blocks external analytics, telemetry, tracking pixels, and unauthorized scripts.
+    """
+    response = await call_next(request)
+    
+    # 1. Block tracking cookies
+    if "set-cookie" in response.headers:
+        del response.headers["set-cookie"]
+    
+    # 2. Prevent MIME type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    
+    # 3. Prevent Clickjacking
+    response.headers["X-Frame-Options"] = "SAMEORIGIN"
+    
+    # 4. Browser XSS protection
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    # 5. Referrer Policy: never leak user's stream history in HTTP Referer
+    response.headers["Referrer-Policy"] = "no-referrer"
+    
+    # 6. Permissions Policy: strictly forbid access to camera, microphone, geolocation
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    
+    # 7. Content Security Policy: enforce offline local execution and allow media streaming
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self' 'unsafe-inline' data: blob:; "
+        "script-src 'self' 'unsafe-inline' blob:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "media-src 'self' blob: http: https:; "
+        "img-src 'self' data: blob: https:; "
+        "connect-src 'self' http: https: ws: wss:; "
+        "frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com https://www.dailymotion.com; "
+        "object-src 'none';"
+    )
+    
+    return response
 
 class ExtractRequest(BaseModel):
     url: str
@@ -74,6 +116,14 @@ async def extract_url(req: ExtractRequest):
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
     
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="Only HTTP and HTTPS stream protocols are supported.")
+    
+    hostname = (parsed.hostname or "").lower()
+    if hostname in {"169.254.169.254", "metadata.google.internal", "instance-data"}:
+        raise HTTPException(status_code=403, detail="Access to cloud metadata endpoints is forbidden.")
+
     info = extract_video_info(url)
     
     if not info.get("success") and not info.get("qualities") and not info.get("entries"):

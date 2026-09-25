@@ -127,11 +127,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun loadUrlInPlayer(videoUrl: String) {
-        val encoded = Uri.encode(videoUrl)
+        // Safe JSON encoding to completely eliminate Javascript injection risks
+        val safeJsonUrl = org.json.JSONObject.quote(videoUrl)
         val script = "if (typeof window.playVideoUrl === 'function') { " +
-                "window.playVideoUrl(decodeURIComponent('$encoded')); " +
+                "window.playVideoUrl($safeJsonUrl); " +
                 "} else if (typeof window.handleStreamSubmit === 'function') { " +
-                "window.handleStreamSubmit(decodeURIComponent('$encoded')); " +
+                "window.handleStreamSubmit($safeJsonUrl); " +
                 "}"
         webView.post {
             webView.evaluateJavascript(script, null)
@@ -164,9 +165,11 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             mediaPlaybackRequiresUserGesture = false
-            allowFileAccess = true
-            allowContentAccess = true
-            mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            allowFileAccess = true // Required for local assets: file:///android_asset/www/
+            allowContentAccess = false // Prevent content provider data leakage
+            allowFileAccessFromFileURLs = false // Prevent JS from accessing arbitrary local storage
+            allowUniversalAccessFromFileURLs = false // Prevent cross-origin access from file URLs
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             cacheMode = WebSettings.LOAD_DEFAULT
             setSupportMultipleWindows(false)
             useWideViewPort = true
@@ -175,6 +178,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url?.toString() ?: return false
+                // Allow local assets and local server
+                if (url.startsWith("file:///android_asset/") || url.startsWith("http://127.0.0.1") || url.startsWith("http://localhost")) {
+                    return false
+                }
+                // Open external links safely in system browser to prevent hijacking player WebView
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    startActivity(intent)
+                } catch (_: Exception) {}
+                return true
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
@@ -233,10 +250,6 @@ class MainActivity : AppCompatActivity() {
             activity.startActivity(Intent.createChooser(intent, "Share video"))
         }
 
-        @JavascriptInterface
-        fun getDeviceInfo(): String {
-            return """{"model":"${Build.MODEL}","sdk":${Build.VERSION.SDK_INT},"brand":"${Build.BRAND}"}"""
-        }
 
         @JavascriptInterface
         fun keepScreenOn(enable: Boolean) {
