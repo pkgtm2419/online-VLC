@@ -2,619 +2,540 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PVP (Personal Video Player)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>PVP Mobile</title>
   <meta name="referrer" content="no-referrer">
   <link rel="stylesheet" href="style.css">
   <script src="hls.min.js"></script>
 </head>
-<body class="vlc-theme">
+<body class="mobile-body">
+  <div id="app" class="app-root">
 
-  <!-- Main VLC Window Container -->
-  <div class="vlc-window" id="vlcWindow">
-
-    <!-- 1. Top Menu Bar (VLC Style) -->
-    <header class="vlc-menubar" id="vlcMenubar">
-      <div class="menubar-left">
-        <!-- VLC Traffic Cone Icon -->
-        <div class="vlc-logo-icon" title="PVP - Personal Video Player">
-          <svg viewBox="0 0 100 100" width="18" height="18">
-            <path d="M50 5 L35 75 L65 75 Z" fill="#ff7f00" stroke="#cc6600" stroke-width="2"/>
-            <path d="M42 30 L38 48 L62 48 L58 30 Z" fill="#ffffff"/>
-            <path d="M37 54 L33 68 L67 68 L63 54 Z" fill="#ffffff"/>
-            <ellipse cx="50" cy="85" rx="36" ry="10" fill="#ff7f00" stroke="#cc6600" stroke-width="2"/>
-            <ellipse cx="50" cy="85" rx="28" ry="7" fill="#e65c00"/>
-          </svg>
-        </div>
-        <div class="menu-item" id="menuMedia">Media
-          <div class="dropdown-menu">
-            <div class="dropdown-item" id="menuOpenStream">Open Network Stream... <span>Ctrl+N</span></div>
-            <div class="dropdown-item" id="menuTogglePlaylist">Open Playlist <span>Ctrl+L</span></div>
-            <div class="dropdown-separator"></div>
-            <div class="dropdown-item" id="menuStopVideo">Stop <span>S</span></div>
+    <!-- ==========================================
+         VIEW 1: MODERN MOBILE HOME SCREEN
+         ========================================== -->
+    <section id="homeView" class="view active-view">
+      <!-- Mobile Top App Bar -->
+      <header class="app-header">
+        <div class="header-brand">
+          <div class="brand-logo" title="PVP Streamer">
+            <svg viewBox="0 0 100 100" width="28" height="28">
+              <ellipse cx="50" cy="85" rx="42" ry="12" fill="#ff7f00" stroke="#cc5500" stroke-width="2"/>
+              <ellipse cx="50" cy="85" rx="32" ry="8" fill="#e65c00"/>
+              <path d="M50 8 L32 75 L68 75 Z" fill="#ff7f00" stroke="#cc5500" stroke-width="2"/>
+              <path d="M42 32 L37 50 L63 50 L58 32 Z" fill="#ffffff"/>
+              <path d="M36 56 L31 70 L69 70 L64 56 Z" fill="#ffffff"/>
+            </svg>
           </div>
-        </div>
-        <div class="menu-item" id="menuPlayback">Playback
-          <div class="dropdown-menu">
-            <div class="dropdown-item" id="menuPlayPause">Play / Pause <span>Space</span></div>
-            <div class="dropdown-item" id="menuStop">Stop <span>S</span></div>
-            <div class="dropdown-item" id="menuPrev">Previous <span>P</span></div>
-            <div class="dropdown-item" id="menuNext">Next <span>N</span></div>
-            <div class="dropdown-separator"></div>
-            <div class="dropdown-item" id="menuFaster">Faster <span>]</span></div>
-            <div class="dropdown-item" id="menuSlower">Slower <span>[</span></div>
-            <div class="dropdown-item" id="menuNormal">Normal Rate <span>=</span></div>
-          </div>
-        </div>
-        <div class="menu-item" id="menuAudio">Audio
-          <div class="dropdown-menu">
-            <div class="dropdown-header">Audio Track</div>
-            <div id="menuAudioTracksList">
-              <div class="dropdown-item active" data-track="-1">Default</div>
-            </div>
-            <div class="dropdown-separator"></div>
-            <div class="dropdown-item" id="menuCycleAudio">Cycle Audio Track <span>B</span></div>
-            <div class="dropdown-separator"></div>
-            <div class="dropdown-item" id="menuMute">Mute <span>M</span></div>
-            <div class="dropdown-item" id="menuVolUp">Volume Up <span>Ctrl+Up</span></div>
-            <div class="dropdown-item" id="menuVolDown">Volume Down <span>Ctrl+Down</span></div>
-          </div>
-        </div>
-        <div class="menu-item" id="menuSubtitle">Subtitle
-          <div class="dropdown-menu">
-            <div class="dropdown-item" id="menuAddSubtitleFile">Add Subtitle File...</div>
-            <div class="dropdown-separator"></div>
-            <div class="dropdown-header">Sub Track</div>
-            <div id="menuSubtitleTracksList">
-              <div class="dropdown-item active" data-sub="-1">Disable</div>
-            </div>
-            <div class="dropdown-separator"></div>
-            <div class="dropdown-item" id="menuCycleSubtitle">Cycle Subtitle Track <span>V</span></div>
-            <div class="dropdown-item" id="menuSubDelayDown">Subtitle Delay -50ms <span>G</span></div>
-            <div class="dropdown-item" id="menuSubDelayUp">Subtitle Delay +50ms <span>H</span></div>
-            <div class="dropdown-separator"></div>
-            <div class="dropdown-item" id="menuSubtitleSettings">Subtitle Settings...</div>
-          </div>
-        </div>
-        <div class="menu-item" id="menuVideo">Video
-          <div class="dropdown-menu">
-            <div class="dropdown-item" id="menuFullscreen">Fullscreen <span>F</span></div>
-            <div class="dropdown-separator"></div>
-            <div class="dropdown-header">Speed</div>
-            <div class="dropdown-item speed-opt" data-speed="0.5">0.50x</div>
-            <div class="dropdown-item speed-opt" data-speed="0.75">0.75x</div>
-            <div class="dropdown-item speed-opt" data-speed="1.0">1.00x (Normal)</div>
-            <div class="dropdown-item speed-opt" data-speed="1.25">1.25x</div>
-            <div class="dropdown-item speed-opt" data-speed="1.5">1.50x</div>
-            <div class="dropdown-item speed-opt" data-speed="2.0">2.00x</div>
-          </div>
-        </div>
-        <div class="menu-item" id="menuView">View
-          <div class="dropdown-menu">
-            <div class="dropdown-item" id="menuViewPlaylist">Playlist <span>Ctrl+L</span></div>
-          </div>
-        </div>
-        <div class="menu-item" id="menuTools">Tools
-          <div class="dropdown-menu">
-            <div class="dropdown-item" id="menuServerSettings">Local Server Settings...</div>
-          </div>
-        </div>
-        <div class="menu-item" id="menuHelp">Help
-          <div class="dropdown-menu">
-            <div class="dropdown-item" id="menuAbout">About PVP</div>
+          <div class="brand-titles">
+            <span class="brand-name">PVP Streamer</span>
+            <span class="brand-badge">Android 12+ • Local</span>
           </div>
         </div>
 
-        <!-- Direct Button to Open URL Popup Modal directly from Menu Bar -->
-        <button id="btnMenuBarStream" class="menubar-direct-btn" title="Open Network Stream (Ctrl+N)">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          <span>Open URL</span>
-        </button>
+        <div class="header-actions">
+          <button id="btnHomePastePlay" class="btn-chip-paste" title="Paste link from clipboard & play">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            <span>Paste &amp; Play</span>
+          </button>
 
-        <!-- Direct One-Tap Paste & Play from Menu Bar (BlackHole Style) -->
-        <button id="btnMenuBarPastePlay" class="menubar-direct-btn btn-menubar-paste" title="Paste URL from Clipboard & Play Instantly">
-          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
-            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-          </svg>
-          <span>📋 Paste & Play</span>
-        </button>
-
-        <!-- Mobile More Menu Button -->
-        <button id="btnMobileMenu" class="mobile-menu-btn" title="Settings & Options">⋮</button>
-      </div>
-
-      <div class="menubar-title" id="windowTitle">PVP (Personal Video Player)</div>
-    </header>
-
-    <!-- 2. Central Video / Media Display Area (Full Viewport) -->
-    <main class="vlc-display" id="vlcDisplay">
-      <!-- BlackHole-Style Instant Clipboard Detection Banner -->
-      <div id="clipboardBanner" class="vlc-clipboard-banner hidden">
-        <div class="clipboard-banner-left">
-          <span class="clipboard-badge">📋 CLIPBOARD</span>
-          <span class="clipboard-text">Found video URL: <span id="clipboardUrlText" class="clipboard-url-highlight">...</span></span>
+          <button id="btnOpenSettings" class="btn-icon-round" title="Settings">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
         </div>
-        <div class="clipboard-banner-actions">
-          <button id="btnClipboardPlay" class="btn-clipboard-play" title="Stream immediately">▶ Stream Now</button>
-          <button id="btnClipboardDismiss" class="btn-clipboard-dismiss" title="Dismiss">&times;</button>
-        </div>
-      </div>
+      </header>
 
-      <!-- Idle State: VLC Traffic Cone Poster -->
-      <div class="vlc-cone-screen" id="coneScreen">
-        <div class="cone-graphic">
-          <svg viewBox="0 0 100 100" width="160" height="160">
-            <ellipse cx="50" cy="85" rx="42" ry="12" fill="#ff7f00" stroke="#cc5500" stroke-width="3"/>
-            <ellipse cx="50" cy="85" rx="32" ry="8" fill="#e65c00"/>
-            <path d="M50 8 L32 75 L68 75 Z" fill="#ff7f00" stroke="#cc5500" stroke-width="2.5"/>
-            <path d="M42 32 L37 50 L63 50 L58 32 Z" fill="#ffffff" stroke="#ddd" stroke-width="0.5"/>
-            <path d="M36 56 L31 70 L69 70 L64 56 Z" fill="#ffffff" stroke="#ddd" stroke-width="0.5"/>
-          </svg>
-        </div>
-        <h2 class="cone-app-title">PVP media player</h2>
-        <p class="cone-tagline">⚡ Direct Universal Streamer &bull; Zero Downloads &bull; 100% Ad-Free Playback</p>
+      <!-- Main Home Scroll Container -->
+      <main class="home-scroll-container">
 
-        <!-- Main Action Buttons (One-Tap Paste & Play like BlackHole + Classic Open Stream) -->
-        <div class="cone-actions-row">
-          <button class="open-stream-btn btn-paste-play" id="btnQuickPastePlay" title="Paste copied video URL and play immediately">
+        <!-- Clipboard Video Detection Banner (BlackHole Style) -->
+        <div id="clipboardBanner" class="clipboard-banner hidden">
+          <div class="clipboard-icon">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
               <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
-              <polygon points="10 11 15 14 10 17" fill="currentColor"></polygon>
             </svg>
-            Paste &amp; Play (One-Tap)
-          </button>
+          </div>
+          <div class="clipboard-info">
+            <span class="clipboard-tag">Copied Video Link</span>
+            <span id="clipboardUrlText" class="clipboard-url">...</span>
+          </div>
+          <div class="clipboard-actions">
+            <button id="btnClipboardPlay" class="btn-clipboard-stream">Stream</button>
+            <button id="btnClipboardDismiss" class="btn-clipboard-close">&times;</button>
+          </div>
+        </div>
 
-          <button class="open-stream-btn btn-secondary-stream" id="btnQuickOpen" title="Open Network Stream Dialog (Ctrl+N)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+        <!-- Stream Hero Card -->
+        <div class="hero-card">
+          <div class="hero-header">
+            <h1 class="hero-title">Stream Any Media</h1>
+            <p class="hero-subtitle">Direct instant playback &bull; Zero downloads &bull; Ad-free</p>
+          </div>
+
+          <!-- URL Input Container -->
+          <div class="input-container">
+            <div class="input-icon">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+              </svg>
+            </div>
+            <input 
+              type="url" 
+              id="urlInput" 
+              class="mobile-input" 
+              placeholder="Paste video link, stream, or playlist..." 
+              spellcheck="false" 
+              autocomplete="off"
+              autocapitalize="off"
+            >
+            <button id="btnClearInput" class="btn-input-clear hidden" title="Clear input">&times;</button>
+            <button id="btnPasteInput" class="btn-input-paste" title="Paste from clipboard">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+              </svg>
+              <span>Paste</span>
+            </button>
+          </div>
+
+          <div id="homeErrorMsg" class="home-error hidden"></div>
+
+          <!-- Primary Stream Button -->
+          <button id="btnStartStream" class="btn-primary-stream">
+            <svg id="streamIcon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
               <polygon points="5 3 19 12 5 21 5 3"></polygon>
             </svg>
-            Open Stream (Ctrl+N)
+            <span id="streamBtnText">Stream Video</span>
+            <div id="homeSpinner" class="spinner-sm hidden"></div>
           </button>
         </div>
 
-        <!-- Supported Services Indicator -->
-        <div class="supported-platforms-container">
-          <span class="platforms-label">Plays directly from:</span>
-          <div class="platform-chips-row">
-            <span class="platform-chip">YouTube &amp; Shorts</span>
-            <span class="platform-chip">Instagram Reels</span>
-            <span class="platform-chip">TikTok</span>
-            <span class="platform-chip">Twitter / X</span>
-            <span class="platform-chip">Facebook</span>
-            <span class="platform-chip">Reddit</span>
-            <span class="platform-chip">Movie Sites (HLS)</span>
-            <span class="platform-chip">Direct MP4 / M3U8</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Active Video Element (Full Size of Screen Browser) -->
-      <video 
-        id="videoPlayer" 
-        class="vlc-video hidden"
-        playsinline
-        crossorigin="anonymous"
-        preload="auto"
-      ></video>
-
-      <!-- Fallback Embed Player (for Cloud Server IP Restrictions) -->
-      <iframe 
-        id="embedFrame" 
-        class="vlc-video hidden" 
-        frameborder="0" 
-        allow="autoplay; fullscreen; encrypted-media; picture-in-picture" 
-        allowfullscreen
-      ></iframe>
-
-      <!-- VLC Subtitle Display Overlay (Realtime SRT/VTT with custom styling) -->
-      <div id="vlcSubtitleOverlay" class="vlc-subtitle-overlay hidden"></div>
-
-      <!-- VLC Authentic On-Screen Display (OSD) Notification -->
-      <div id="vlcOsd" class="vlc-osd hidden"></div>
-
-      <!-- Video Loading Spinner -->
-      <div id="videoLoader" class="vlc-loader hidden">
-        <div class="vlc-spinner"></div>
-        <span id="loaderMsg">Opening media stream...</span>
-      </div>
-
-      <!-- Playlist Side Panel (VLC Playlist View, Ctrl+L) -->
-      <aside id="playlistPanel" class="playlist-panel hidden">
-        <div class="playlist-header">
-          <div class="playlist-header-title">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="8" y1="6" x2="21" y2="6"></line>
-              <line x1="8" y1="12" x2="21" y2="12"></line>
-              <line x1="8" y1="18" x2="21" y2="18"></line>
-              <line x1="3" y1="6" x2="3.01" y2="6"></line>
-              <line x1="3" y1="12" x2="3.01" y2="12"></line>
-              <line x1="3" y1="18" x2="3.01" y2="18"></line>
-            </svg>
-            <span id="playlistTitle">Playlist</span>
-            <span class="playlist-count" id="playlistCount">(0 items)</span>
-          </div>
-          <button id="btnClosePlaylist" class="vlc-btn-icon" title="Close Playlist (Ctrl+L)">&times;</button>
-        </div>
-        <div class="playlist-table-head">
-          <span class="col-num">#</span>
-          <span class="col-title">Title</span>
-          <span class="col-dur">Duration</span>
-        </div>
-        <div id="playlistItems" class="playlist-items-list"></div>
-      </aside>
-
-      <!-- Unmute Hint Banner (if browser blocked unmuted autoplay) -->
-      <div id="unmutePrompt" class="vlc-unmute-hint hidden">
-        <span>🔊 Playing muted due to browser policy. Click anywhere or press <b>M</b> to unmute.</span>
-        <button id="btnUnmute">Unmute</button>
-      </div>
-
-      <!-- Touch Gesture Overlay for Mobile Seeking (Double Tap) -->
-      <div class="touch-gesture-overlay" id="touchGestureOverlay">
-        <div class="touch-half-left" id="touchSeekLeft">
-          <div class="seek-ripple" id="rippleLeft">⟲ 10s</div>
-        </div>
-        <div class="touch-half-right" id="touchSeekRight">
-          <div class="seek-ripple" id="rippleRight">10s ⟳</div>
-        </div>
-      </div>
-    </main>
-
-    <!-- 3. Bottom Control Toolbar (Authentic VLC Media Controls) -->
-    <footer class="vlc-controls" id="vlcControls">
-      <!-- Row 1: Seek / Progress Bar & Time Displays -->
-      <div class="seek-row">
-        <span id="timeElapsed" class="time-label" title="Elapsed Time">00:00:00</span>
-        <div class="vlc-progress-container" id="progressContainer">
-          <div class="vlc-progress-bar" id="progressBar"></div>
-          <input type="range" id="seekSlider" min="0" max="100" value="0" step="0.1">
-        </div>
-        <span id="timeTotal" class="time-label" title="Click to toggle Total / Remaining time">00:00:00</span>
-      </div>
-
-      <!-- Row 2: Control Buttons (Play, Prev, Stop, Next, Fullscreen, Volume, Speed) -->
-      <div class="controls-row">
-        <div class="controls-left">
-          <!-- Play / Pause Button -->
-          <button id="btnPlayPause" class="vlc-ctrl-btn main-play-btn" title="Play / Pause (Space)">
-            <svg id="playSvg" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-            <svg id="pauseSvg" class="hidden" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <rect x="6" y="4" width="4" height="16"></rect>
-              <rect x="14" y="4" width="4" height="16"></rect>
-            </svg>
-          </button>
-
-          <!-- Previous Track -->
-          <button id="btnPrev" class="vlc-ctrl-btn" title="Previous (P)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <polygon points="19 20 9 12 19 4 19 20"></polygon>
-              <line x1="5" y1="4" x2="5" y2="20" stroke="currentColor" stroke-width="3"></line>
-            </svg>
-          </button>
-
-          <!-- Stop Button -->
-          <button id="btnStop" class="vlc-ctrl-btn" title="Stop (S)">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <rect x="4" y="4" width="16" height="16"></rect>
-            </svg>
-          </button>
-
-          <!-- Next Track -->
-          <button id="btnNext" class="vlc-ctrl-btn" title="Next (N)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <polygon points="5 4 15 12 5 20 5 4"></polygon>
-              <line x1="19" y1="4" x2="19" y2="20" stroke="currentColor" stroke-width="3"></line>
-            </svg>
-          </button>
-
-          <!-- Fullscreen Button -->
-          <button id="btnFullscreen" class="vlc-ctrl-btn" title="Fullscreen (F)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="15 3 21 3 21 9"></polyline>
-              <polyline points="9 21 3 21 3 15"></polyline>
-              <polyline points="21 15 21 21 15 21"></polyline>
-              <polyline points="3 9 3 3 9 3"></polyline>
-            </svg>
-          </button>
-
-          <!-- Toggle Playlist -->
-          <button id="btnPlaylistToggle" class="vlc-ctrl-btn" title="Playlist (Ctrl+L)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
-              <line x1="8" y1="6" x2="21" y2="6"></line>
-              <line x1="8" y1="12" x2="21" y2="12"></line>
-              <line x1="8" y1="18" x2="21" y2="18"></line>
-              <circle cx="4" cy="6" r="1.5" fill="currentColor"></circle>
-              <circle cx="4" cy="12" r="1.5" fill="currentColor"></circle>
-              <circle cx="4" cy="18" r="1.5" fill="currentColor"></circle>
-            </svg>
-          </button>
-
-          <!-- Loop Mode Button -->
-          <button id="btnLoop" class="vlc-ctrl-btn" title="Loop: Off / All / One">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="17 1 21 5 17 9"></polyline>
-              <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-              <polyline points="7 23 3 19 7 15"></polyline>
-              <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
-            </svg>
-            <span id="loopBadge" class="btn-subtext">Off</span>
-          </button>
-
-          <!-- Network Stream Button -->
-          <button id="btnOpenStreamBar" class="vlc-ctrl-btn" title="Open Network Stream (Ctrl+N)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
-            <span class="btn-subtext">Stream</span>
-          </button>
-        </div>
-
-        <div class="controls-right">
-          <!-- Playback Speed Indicator & Controls -->
-          <div class="speed-widget" title="Playback Speed ([ Slower, ] Faster, = Reset)">
-            <button id="btnSpeedDown" class="speed-step-btn" title="Slower ([)">&minus;</button>
-            <span id="speedValue" class="speed-label">1.00x</span>
-            <button id="btnSpeedUp" class="speed-step-btn" title="Faster (])">&plus;</button>
-          </div>
-
-          <!-- Audio Language Selector (B) -->
-          <div class="audio-track-widget" title="Audio Language / Track (B)">
-            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-              <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
-            </svg>
-            <select id="audioTrackSelect" class="vlc-select" title="Audio Track (B)">
-              <option value="-1">Audio: Default</option>
-            </select>
-          </div>
-
-          <!-- Subtitle Selector & Settings (V) -->
-          <div class="subtitle-widget" title="Subtitles (V)">
-            <button id="btnSubtitles" class="vlc-ctrl-btn sub-toggle-btn" title="Subtitle Settings & Delay">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-                <path d="M7 15h4M15 15h2M7 11h2M13 11h4"></path>
-              </svg>
-              <span class="btn-subtext">CC</span>
-            </button>
-            <select id="subtitleSelect" class="vlc-select" title="Subtitle Track">
-              <option value="-1">Sub: Off</option>
-            </select>
-          </div>
-
-          <!-- Quality Selector -->
-          <div class="quality-widget">
-            <select id="qualitySelect" class="vlc-select" title="Stream Quality"></select>
-          </div>
-
-          <!-- Volume Controls with % (up to 125% like VLC) -->
-          <div class="volume-widget">
-            <button id="btnMute" class="vlc-ctrl-btn" title="Mute (M)">
-              <svg id="volHighSvg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
-              </svg>
-              <svg id="volMuteSvg" class="hidden" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                <line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" stroke-width="2"></line>
-                <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" stroke-width="2"></line>
-              </svg>
-            </button>
-            <input type="range" id="volumeSlider" min="0" max="125" value="100" class="vol-slider" title="Volume">
-            <span id="volumePercent" class="vol-label">100%</span>
-          </div>
-        </div>
-      </div>
-    </footer>
-  </div>
-
-  <!-- 4. VLC "Open Network Stream" Modal (Opens on first launch & Ctrl+N) -->
-  <div id="streamModal" class="vlc-modal-overlay">
-    <div class="vlc-modal">
-      <div class="modal-titlebar">
-        <div class="modal-titlebar-left">
-          <svg viewBox="0 0 100 100" width="16" height="16">
-            <path d="M50 5 L35 75 L65 75 Z" fill="#ff7f00"/>
-            <path d="M42 30 L38 48 L62 48 L58 30 Z" fill="#ffffff"/>
-            <path d="M37 54 L33 68 L67 68 L63 54 Z" fill="#ffffff"/>
-            <ellipse cx="50" cy="85" rx="36" ry="10" fill="#ff7f00"/>
-          </svg>
-          <span>Open Media - PVP</span>
-        </div>
-        <button id="btnModalClose" class="modal-close-btn">&times;</button>
-      </div>
-
-      <div class="modal-tabs">
-        <div class="modal-tab active">🌐 Network Stream</div>
-      </div>
-
-      <div class="modal-body">
-        <p class="modal-instructions">Please enter a network URL (video, playlist, YouTube, Vimeo, direct stream, cloud link):</p>
-        
-        <div class="url-input-row">
-          <input 
-            type="url" 
-            id="urlModalInput" 
-            placeholder="https://www.youtube.com/watch?v=... or playlist URL..."
-            spellcheck="false"
-            autocomplete="off"
-            autofocus
-          >
-          <button id="btnModalPaste" class="vlc-dialog-btn" title="Paste from clipboard">
-            Paste
-          </button>
-        </div>
-
-        <div id="modalError" class="modal-error hidden"></div>
-      </div>
-
-      <div class="modal-footer">
-        <button id="btnModalCancel" class="vlc-dialog-btn">Cancel</button>
-        <button id="btnModalPasteStream" class="vlc-dialog-btn btn-paste-vlc" title="Paste clipboard link and stream immediately">
-          📋 Paste &amp; Stream
-        </button>
-        <button id="btnModalStream" class="vlc-dialog-btn btn-primary-vlc">
-          <span id="modalBtnText">Stream</span>
-          <div id="modalSpinner" class="vlc-spinner-sm hidden"></div>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Hidden file input for loading external subtitles (.srt, .vtt) -->
-  <input type="file" id="subFileInput" accept=".srt,.vtt,.ass,.ssa" class="hidden">
-
-  <!-- 5. VLC "Subtitle & Audio Track Settings" Modal -->
-  <div id="subSettingsModal" class="vlc-modal-overlay hidden">
-    <div class="vlc-modal sub-settings-modal">
-      <div class="modal-titlebar">
-        <div class="modal-titlebar-left">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ff7f00" stroke-width="2">
-            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
-            <path d="M7 15h4M15 15h2M7 11h2M13 11h4"></path>
-          </svg>
-          <span>Subtitle & Audio Track Settings</span>
-        </div>
-        <button id="btnSubSettingsClose" class="modal-close-btn">&times;</button>
-      </div>
-
-      <div class="modal-body sub-settings-body">
-        <!-- Audio Track Selection Section -->
-        <div class="setting-group">
-          <label class="setting-label">Audio Track / Language:</label>
-          <div class="setting-row">
-            <select id="modalAudioSelect" class="vlc-dialog-select"></select>
-            <button id="btnModalCycleAudio" class="vlc-dialog-btn" title="Cycle Track (B)">Cycle (B)</button>
-          </div>
-        </div>
-
-        <!-- Subtitle Track Selection Section -->
-        <div class="setting-group">
-          <label class="setting-label">Subtitle Track / Language:</label>
-          <div class="setting-row">
-            <select id="modalSubSelect" class="vlc-dialog-select"></select>
-            <button id="btnModalCycleSub" class="vlc-dialog-btn" title="Cycle Subtitle (V)">Cycle (V)</button>
-          </div>
-        </div>
-
-        <!-- Add Subtitle File Section -->
-        <div class="setting-group">
-          <label class="setting-label">External Subtitle File (.srt / .vtt):</label>
-          <div class="setting-row">
-            <button id="btnBrowseSub" class="vlc-dialog-btn btn-primary-vlc">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-              </svg>
-              <span>Load Subtitle File...</span>
-            </button>
-            <span id="subFileName" class="sub-file-label">No custom file loaded</span>
-          </div>
-        </div>
-
-        <!-- Subtitle Synchronization / Delay Section -->
-        <div class="setting-group">
-          <div class="setting-label-row">
-            <label class="setting-label">Subtitle Delay (Sync):</label>
-            <span id="subDelayDisplay" class="sub-val-badge">0 ms</span>
-          </div>
-          <div class="sync-slider-row">
-            <button id="btnSubDelayMinus" class="speed-step-btn" title="-50ms (G)">&minus;50ms</button>
-            <input type="range" id="subDelaySlider" min="-5000" max="5000" step="50" value="0" class="sub-slider">
-            <button id="btnSubDelayPlus" class="speed-step-btn" title="+50ms (H)">&plus;50ms</button>
-            <button id="btnSubDelayReset" class="vlc-dialog-btn" title="Reset to 0ms">Reset</button>
-          </div>
-        </div>
-
-        <!-- Subtitle Style & Appearance Section -->
-        <div class="setting-group">
-          <label class="setting-label">Subtitle Appearance:</label>
-          <div class="style-controls-grid">
-            <div class="style-item">
-              <span>Size:</span>
-              <select id="subSizeSelect" class="vlc-dialog-select">
-                <option value="16px">Small (16px)</option>
-                <option value="22px" selected>Normal (22px)</option>
-                <option value="28px">Large (28px)</option>
-                <option value="36px">Extra Large (36px)</option>
-              </select>
+        <!-- Supported Platforms Section -->
+        <div class="platforms-section">
+          <span class="section-label">Supported Platforms</span>
+          <div class="platform-chips-scroll">
+            <div class="platform-chip" data-platform="youtube">
+              <span class="chip-dot dot-yt"></span> YouTube &amp; Shorts
             </div>
-            <div class="style-item">
-              <span>Color:</span>
-              <select id="subColorSelect" class="vlc-dialog-select">
-                <option value="#ffffff" selected>White</option>
-                <option value="#ffe600">Yellow (VLC)</option>
-                <option value="#00e5ff">Cyan</option>
-                <option value="#00ff66">Green</option>
-              </select>
+            <div class="platform-chip" data-platform="instagram">
+              <span class="chip-dot dot-ig"></span> Instagram Reels
             </div>
-            <div class="style-item">
-              <span>Background:</span>
-              <select id="subBgSelect" class="vlc-dialog-select">
-                <option value="rgba(0,0,0,0.75)" selected>Translucent Black</option>
-                <option value="rgba(0,0,0,0.95)">Solid Black</option>
-                <option value="transparent">None (Outline only)</option>
-              </select>
+            <div class="platform-chip" data-platform="tiktok">
+              <span class="chip-dot dot-tt"></span> TikTok
+            </div>
+            <div class="platform-chip" data-platform="twitter">
+              <span class="chip-dot dot-tw"></span> Twitter / X
+            </div>
+            <div class="platform-chip" data-platform="twitch">
+              <span class="chip-dot dot-twch"></span> Twitch
+            </div>
+            <div class="platform-chip" data-platform="hls">
+              <span class="chip-dot dot-hls"></span> HLS (m3u8)
+            </div>
+            <div class="platform-chip" data-platform="direct">
+              <span class="chip-dot dot-mp4"></span> Direct MP4
+            </div>
+            <div class="platform-chip" data-platform="vimeo">
+              <span class="chip-dot dot-vm"></span> Vimeo
             </div>
           </div>
         </div>
 
-        <!-- Subtitle Live Preview Box -->
-        <div class="sub-preview-container">
-          <div class="sub-preview-box" id="subPreviewBox">
-            <span id="subPreviewText">Demon Slayer: Infinity Castle — English Subtitle Preview</span>
+        <!-- Recent Streams Section -->
+        <div class="history-section">
+          <div class="history-header">
+            <span class="section-label">Recent Plays</span>
+            <button id="btnClearHistory" class="btn-text-subtle hidden">Clear</button>
+          </div>
+          <div id="historyList" class="history-list">
+            <div class="history-empty">
+              <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <p>No recent streams yet</p>
+              <span>Played videos will appear here for fast re-streaming</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="modal-footer">
-        <button id="btnSubSettingsClose2" class="vlc-dialog-btn btn-primary-vlc">Done</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 6. Local Server & Network Settings Modal -->
-  <div id="serverModal" class="vlc-modal-backdrop hidden">
-    <div class="vlc-modal vlc-dialog-window" style="max-width: 440px;">
-      <div class="vlc-modal-header">
-        <div class="modal-title-left">
+        <!-- On-Device Privacy Badge -->
+        <div class="privacy-badge">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
-          <span>Local Server Settings</span>
+          <span>100% Local Playback &bull; Zero External Telemetry &bull; Ad-Free</span>
         </div>
-        <button id="btnServerModalClose" class="modal-close-btn">&times;</button>
+
+      </main>
+    </section>
+
+    <!-- ==========================================
+         VIEW 2: FULLSCREEN MOBILE VIDEO PLAYER HUD
+         ========================================== -->
+    <section id="playerView" class="view">
+      <div class="player-canvas" id="playerCanvas">
+        <!-- Native Video Element -->
+        <video 
+          id="videoPlayer" 
+          class="native-video" 
+          playsinline 
+          webkit-playsinline
+          crossorigin="anonymous" 
+          preload="auto"
+        ></video>
+
+        <!-- Embed Frame Fallback -->
+        <iframe 
+          id="embedFrame" 
+          class="embed-video hidden" 
+          frameborder="0" 
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture" 
+          allowfullscreen
+        ></iframe>
+
+        <!-- Real-Time Subtitle Overlay -->
+        <div id="vlcSubtitleOverlay" class="subtitle-overlay hidden"></div>
+
+        <!-- Video Loading Spinner -->
+        <div id="playerLoader" class="player-loader hidden">
+          <div class="spinner-large"></div>
+          <span id="playerLoaderMsg">Opening stream...</span>
+        </div>
+
+        <!-- OSD Toast Banner -->
+        <div id="vlcOsd" class="player-osd hidden"></div>
+
+        <!-- Gesture Feedback Indicators -->
+        <div id="volumeHud" class="gesture-hud hidden">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+          <span id="volumeHudVal">100%</span>
+        </div>
+
+        <div id="brightnessHud" class="gesture-hud hidden">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <span id="brightnessHudVal">100%</span>
+        </div>
+
+        <!-- Double-Tap Seek Ripples -->
+        <div id="rippleLeft" class="seek-ripple seek-left">
+          <div class="ripple-content">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="11 17 6 12 11 7"></polyline>
+              <polyline points="18 17 13 12 18 7"></polyline>
+            </svg>
+            <span>10s</span>
+          </div>
+        </div>
+
+        <div id="rippleRight" class="seek-ripple seek-right">
+          <div class="ripple-content">
+            <span>10s</span>
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="13 17 18 12 13 7"></polyline>
+              <polyline points="6 17 11 12 6 7"></polyline>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Touch Gesture Capture Surface -->
+        <div id="playerGestureZone" class="gesture-surface">
+          <div id="zoneLeft" class="gesture-half"></div>
+          <div id="zoneRight" class="gesture-half"></div>
+        </div>
+
+        <!-- Top & Bottom HUD Overlays -->
+        <div id="playerHud" class="player-hud">
+          <!-- Top HUD Bar -->
+          <div class="hud-top-bar">
+            <button id="btnPlayerBack" class="hud-btn-circle" title="Back to home">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+              </svg>
+            </button>
+
+            <div class="hud-title-container">
+              <span id="playerTitle" class="hud-video-title">PVP Video Player</span>
+            </div>
+
+            <div class="hud-top-actions">
+              <button id="btnAudioSheet" class="hud-btn-circle" title="Audio Track">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
+                  <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"></path>
+                </svg>
+              </button>
+
+              <button id="btnSubSheet" class="hud-btn-circle" title="Subtitles">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                  <path d="M7 15h4M15 15h2M7 11h2M13 11h4"></path>
+                </svg>
+              </button>
+
+              <button id="btnSpeedSheet" class="hud-btn-pill" title="Playback Speed">
+                <span id="hudSpeedLabel">1.0x</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Center Play/Pause & Quick Seek HUD -->
+          <div class="hud-center-controls">
+            <button id="btnHudRewind" class="hud-control-secondary" title="Rewind 10s">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                <path d="M3 3v5h5"></path>
+              </svg>
+              <span>10</span>
+            </button>
+
+            <button id="btnHudPlayPause" class="hud-play-circle" title="Play / Pause">
+              <svg id="hudPlaySvg" viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                <polygon points="6 3 20 12 6 21 6 3"></polygon>
+              </svg>
+              <svg id="hudPauseSvg" class="hidden" viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16"></rect>
+                <rect x="14" y="4" width="4" height="16"></rect>
+              </svg>
+            </button>
+
+            <button id="btnHudForward" class="hud-control-secondary" title="Forward 10s">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+              </svg>
+              <span>10</span>
+            </button>
+          </div>
+
+          <!-- Bottom HUD Bar -->
+          <div class="hud-bottom-bar">
+            <!-- Scrubber Row -->
+            <div class="scrubber-row">
+              <span id="timeElapsed" class="hud-time">00:00</span>
+              <div class="slider-wrapper" id="progressContainer">
+                <div class="slider-track-bg"></div>
+                <div class="slider-buffer-bar" id="bufferBar"></div>
+                <div class="slider-progress-bar" id="progressBar"></div>
+                <input type="range" id="seekSlider" class="touch-slider" min="0" max="100" value="0" step="0.1">
+              </div>
+              <span id="timeTotal" class="hud-time">00:00</span>
+            </div>
+
+            <!-- Bottom Quick Actions -->
+            <div class="bottom-tools-row">
+              <button id="btnHudMute" class="hud-tool-btn" title="Mute / Unmute">
+                <svg id="volHighSvg" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                </svg>
+                <svg id="volMuteSvg" class="hidden" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <line x1="23" y1="9" x2="17" y2="15" stroke="currentColor" stroke-width="2"></line>
+                  <line x1="17" y1="9" x2="23" y2="15" stroke="currentColor" stroke-width="2"></line>
+                </svg>
+              </button>
+
+              <button id="btnHudShare" class="hud-tool-btn" title="Share Video Link">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+              </button>
+
+              <div class="bottom-spacer"></div>
+
+              <button id="btnHudRotate" class="hud-tool-btn" title="Rotate Orientation">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                  <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                </svg>
+              </button>
+
+              <button id="btnHudFullscreen" class="hud-tool-btn" title="Fullscreen">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <polyline points="9 21 3 21 3 15"></polyline>
+                  <polyline points="21 15 21 21 15 21"></polyline>
+                  <polyline points="3 9 3 3 9 3"></polyline>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
-      <div class="modal-body" style="padding: 16px;">
-        <p style="font-size: 12px; color: #bbb; margin-bottom: 12px; line-height: 1.5;">
-          PVP is 100% local-first without cloud servers. Direct streams (.mp4, .m3u8, YouTube, Vimeo) play directly on device.
-        </p>
-        <div style="margin-bottom: 12px;">
-          <label style="display:block; font-size: 12px; color: #ff8800; margin-bottom: 6px; font-weight: bold;">Local Backend Server URL:</label>
-          <input type="text" id="localServerInput" placeholder="http://127.0.0.1:8000" style="width: 100%; box-sizing: border-box; background: #1a1a1a; border: 1px solid #444; color: #fff; padding: 7px 10px; border-radius: 4px; font-size: 13px;">
-          <small style="display:block; color: #888; font-size: 11px; margin-top: 6px;">Default: <code>http://127.0.0.1:8000</code>. On mobile over Wi-Fi, enter your PC's LAN IP (e.g. <code>http://192.168.1.15:8000</code>).</small>
-        </div>
-        <div id="serverStatusBadge" style="font-size: 12px; padding: 8px 10px; border-radius: 4px; background: rgba(255,136,0,0.15); border: 1px solid rgba(255,136,0,0.3); color: #ff9900;">
-          Checking local server...
-        </div>
+    </section>
+
+    <!-- ==========================================
+         MATERIAL 3 MODAL BOTTOM SHEETS
+         ========================================== -->
+    <!-- Dim Backdrop for All Sheets -->
+    <div id="sheetBackdrop" class="sheet-backdrop hidden"></div>
+
+    <!-- 1. Audio Track Sheet -->
+    <div id="audioSheet" class="bottom-sheet hidden">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Audio Track</h3>
+        <button class="sheet-close-btn">&times;</button>
       </div>
-      <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: flex-end; gap: 8px;">
-        <button id="btnServerReset" class="vlc-dialog-btn">Default</button>
-        <button id="btnServerSave" class="vlc-dialog-btn btn-primary-vlc">Save & Apply</button>
+      <div class="sheet-content">
+        <div id="audioTracksList" class="sheet-list-group">
+          <!-- Dynamic audio track items -->
+          <div class="sheet-list-item active" data-track="-1">
+            <span class="sheet-item-label">Default Audio</span>
+            <span class="sheet-item-check">✓</span>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- 2. Subtitle Sheet -->
+    <div id="subtitleSheet" class="bottom-sheet hidden">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Subtitles &amp; Captions</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <div class="sheet-content">
+        <div class="sheet-section-title">Track Selection</div>
+        <div id="subtitleTracksList" class="sheet-list-group">
+          <div class="sheet-list-item active" data-sub="-1">
+            <span class="sheet-item-label">Subtitles Off</span>
+            <span class="sheet-item-check">✓</span>
+          </div>
+        </div>
+
+        <div class="sheet-section-title">Custom Subtitle File</div>
+        <button id="btnLoadCustomSub" class="btn-sheet-action">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <span id="customSubLabel">Load .SRT or .VTT File...</span>
+        </button>
+
+        <div class="sheet-section-title">Sync Delay</div>
+        <div class="sync-slider-row">
+          <button id="btnSubDelayMinus" class="btn-step-circle">-50ms</button>
+          <div class="sync-info">
+            <span id="subDelayDisplay">0 ms</span>
+          </div>
+          <button id="btnSubDelayPlus" class="btn-step-circle">+50ms</button>
+          <button id="btnSubDelayReset" class="btn-step-reset">Reset</button>
+        </div>
+
+        <div class="sheet-section-title">Font Size &amp; Color</div>
+        <div class="sheet-options-grid">
+          <div class="option-select-wrap">
+            <label>Size</label>
+            <select id="subSizeSelect" class="sheet-select">
+              <option value="16px">Small</option>
+              <option value="22px" selected>Normal</option>
+              <option value="28px">Large</option>
+              <option value="34px">Extra</option>
+            </select>
+          </div>
+          <div class="option-select-wrap">
+            <label>Color</label>
+            <select id="subColorSelect" class="sheet-select">
+              <option value="#ffffff" selected>White</option>
+              <option value="#ffe600">Yellow (VLC)</option>
+              <option value="#00e5ff">Cyan</option>
+              <option value="#00ff66">Green</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Speed Sheet -->
+    <div id="speedSheet" class="bottom-sheet hidden">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">Playback Speed</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <div class="sheet-content">
+        <div class="speed-grid">
+          <button class="speed-chip" data-speed="0.25">0.25x</button>
+          <button class="speed-chip" data-speed="0.5">0.5x</button>
+          <button class="speed-chip" data-speed="0.75">0.75x</button>
+          <button class="speed-chip active" data-speed="1.0">1.0x (Normal)</button>
+          <button class="speed-chip" data-speed="1.25">1.25x</button>
+          <button class="speed-chip" data-speed="1.5">1.5x</button>
+          <button class="speed-chip" data-speed="1.75">1.75x</button>
+          <button class="speed-chip" data-speed="2.0">2.0x</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Settings & Network Sheet -->
+    <div id="settingsSheet" class="bottom-sheet hidden">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3 class="sheet-title">PVP Settings</h3>
+        <button class="sheet-close-btn">&times;</button>
+      </div>
+      <div class="sheet-content">
+        <div class="settings-card">
+          <div class="settings-card-header">
+            <span class="settings-card-title">Backend Architecture</span>
+            <span id="backendBadge" class="status-badge badge-active">Standalone Ready</span>
+          </div>
+          <p class="settings-desc">
+            Direct streams (.mp4, .m3u8, YouTube, Vimeo) play natively on device with zero cloud dependencies.
+          </p>
+        </div>
+
+        <div class="sheet-section-title">LAN Desktop Server (Optional)</div>
+        <p class="settings-hint">
+          If you run PVP Desktop on your PC, you can enter its Wi-Fi address (e.g. <code>http://192.168.1.15:8000</code>) to access PC extractors.
+        </p>
+        <div class="server-input-row">
+          <input type="text" id="localServerInput" class="mobile-input-sm" placeholder="http://127.0.0.1:8000">
+          <button id="btnSaveServer" class="btn-save-sm">Save</button>
+        </div>
+        <button id="btnResetServer" class="btn-text-subtle" style="margin-top: 8px;">Reset to Default</button>
+
+        <div class="settings-about">
+          <span>PVP Mobile v2.0 &bull; Built for Android 12+</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden Subtitle File Input -->
+    <input type="file" id="subFileInput" accept=".srt,.vtt,.ass,.ssa" class="hidden">
+
   </div>
 
   <script src="app.js"></script>

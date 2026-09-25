@@ -1,10 +1,10 @@
 /**
- * PVP (Personal Video Player) - Client Logic
- * Authentic VLC Media Player layout, shortcuts, playlist support,
- * true VLC fullscreen mode with 5s cursor/footer autohide, and robust duration/seeking.
+ * PVP Mobile - Client Application Logic (Android 12+ Optimized)
+ * 100% Local Playback, Material 3 Modal Bottom Sheets, Gesture HUD,
+ * Double-Tap Seek, Swipe Brightness & Volume, and Native Android Integration.
  */
 
-// Base URL for API requests (100% local, no cloud/Render dependencies)
+// Base URL for API requests (100% local, no cloud dependencies)
 let API_BASE = '';
 if (typeof window !== 'undefined') {
   const savedServer = localStorage.getItem('pvp_local_server_url');
@@ -16,147 +16,119 @@ if (typeof window !== 'undefined') {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // DOM Elements - VLC Window & Menubar
-  const vlcWindow = document.getElementById('vlcWindow');
-  const windowTitle = document.getElementById('windowTitle');
-  const btnMenuBarStream = document.getElementById('btnMenuBarStream');
-  const btnMenuBarPastePlay = document.getElementById('btnMenuBarPastePlay');
+  // DOM: Views
+  const homeView = document.getElementById('homeView');
+  const playerView = document.getElementById('playerView');
+  const playerCanvas = document.getElementById('playerCanvas');
 
-  // Menubar items
-  const menuOpenStream = document.getElementById('menuOpenStream');
-  const menuTogglePlaylist = document.getElementById('menuTogglePlaylist');
-  const menuStopVideo = document.getElementById('menuStopVideo');
-  const menuPlayPause = document.getElementById('menuPlayPause');
-  const menuStop = document.getElementById('menuStop');
-  const menuPrev = document.getElementById('menuPrev');
-  const menuNext = document.getElementById('menuNext');
-  const menuFaster = document.getElementById('menuFaster');
-  const menuSlower = document.getElementById('menuSlower');
-  const menuNormal = document.getElementById('menuNormal');
-  const menuMute = document.getElementById('menuMute');
-  const menuVolUp = document.getElementById('menuVolUp');
-  const menuVolDown = document.getElementById('menuVolDown');
-  const menuFullscreen = document.getElementById('menuFullscreen');
-  const menuViewPlaylist = document.getElementById('menuViewPlaylist');
-  const menuAbout = document.getElementById('menuAbout');
+  // DOM: Home Elements
+  const urlInput = document.getElementById('urlInput');
+  const btnClearInput = document.getElementById('btnClearInput');
+  const btnPasteInput = document.getElementById('btnPasteInput');
+  const btnStartStream = document.getElementById('btnStartStream');
+  const streamBtnText = document.getElementById('streamBtnText');
+  const homeSpinner = document.getElementById('homeSpinner');
+  const homeErrorMsg = document.getElementById('homeErrorMsg');
+  const btnHomePastePlay = document.getElementById('btnHomePastePlay');
+  const btnOpenSettings = document.getElementById('btnOpenSettings');
 
-  // Center display area
-  const vlcDisplay = document.getElementById('vlcDisplay');
-  const coneScreen = document.getElementById('coneScreen');
-  const btnQuickOpen = document.getElementById('btnQuickOpen');
-  const btnQuickPastePlay = document.getElementById('btnQuickPastePlay');
+  // DOM: Clipboard Banner
   const clipboardBanner = document.getElementById('clipboardBanner');
   const clipboardUrlText = document.getElementById('clipboardUrlText');
   const btnClipboardPlay = document.getElementById('btnClipboardPlay');
   const btnClipboardDismiss = document.getElementById('btnClipboardDismiss');
+
+  // DOM: Platforms & History
+  const platformChips = document.querySelectorAll('.platform-chip');
+  const historyList = document.getElementById('historyList');
+  const btnClearHistory = document.getElementById('btnClearHistory');
+
+  // DOM: Video & Embed
   const videoPlayer = document.getElementById('videoPlayer');
   const embedFrame = document.getElementById('embedFrame');
-  const videoLoader = document.getElementById('videoLoader');
-  const loaderMsg = document.getElementById('loaderMsg');
-  const unmutePrompt = document.getElementById('unmutePrompt');
-  const btnUnmute = document.getElementById('btnUnmute');
+  const vlcSubtitleOverlay = document.getElementById('vlcSubtitleOverlay');
+  const playerLoader = document.getElementById('playerLoader');
+  const playerLoaderMsg = document.getElementById('playerLoaderMsg');
+  const vlcOsd = document.getElementById('vlcOsd');
 
-  // Playlist Panel
-  const playlistPanel = document.getElementById('playlistPanel');
-  const playlistTitle = document.getElementById('playlistTitle');
-  const playlistCount = document.getElementById('playlistCount');
-  const playlistItems = document.getElementById('playlistItems');
-  const btnClosePlaylist = document.getElementById('btnClosePlaylist');
+  // DOM: Gesture Feedback Overlays
+  const volumeHud = document.getElementById('volumeHud');
+  const volumeHudVal = document.getElementById('volumeHudVal');
+  const brightnessHud = document.getElementById('brightnessHud');
+  const brightnessHudVal = document.getElementById('brightnessHudVal');
+  const rippleLeft = document.getElementById('rippleLeft');
+  const rippleRight = document.getElementById('rippleRight');
+  const playerGestureZone = document.getElementById('playerGestureZone');
 
-  // Bottom controls toolbar
-  const vlcControls = document.getElementById('vlcControls');
+  // DOM: Player HUD
+  const playerHud = document.getElementById('playerHud');
+  const btnPlayerBack = document.getElementById('btnPlayerBack');
+  const playerTitle = document.getElementById('playerTitle');
+  const btnAudioSheet = document.getElementById('btnAudioSheet');
+  const btnSubSheet = document.getElementById('btnSubSheet');
+  const btnSpeedSheet = document.getElementById('btnSpeedSheet');
+  const hudSpeedLabel = document.getElementById('hudSpeedLabel');
+
+  const btnHudRewind = document.getElementById('btnHudRewind');
+  const btnHudPlayPause = document.getElementById('btnHudPlayPause');
+  const hudPlaySvg = document.getElementById('hudPlaySvg');
+  const hudPauseSvg = document.getElementById('hudPauseSvg');
+  const btnHudForward = document.getElementById('btnHudForward');
+
   const timeElapsed = document.getElementById('timeElapsed');
   const timeTotal = document.getElementById('timeTotal');
+  const progressContainer = document.getElementById('progressContainer');
   const progressBar = document.getElementById('progressBar');
+  const bufferBar = document.getElementById('bufferBar');
   const seekSlider = document.getElementById('seekSlider');
 
-  const btnPlayPause = document.getElementById('btnPlayPause');
-  const playSvg = document.getElementById('playSvg');
-  const pauseSvg = document.getElementById('pauseSvg');
-  const btnPrev = document.getElementById('btnPrev');
-  const btnStop = document.getElementById('btnStop');
-  const btnNext = document.getElementById('btnNext');
-  const btnFullscreen = document.getElementById('btnFullscreen');
-  const btnPlaylistToggle = document.getElementById('btnPlaylistToggle');
-  const btnLoop = document.getElementById('btnLoop');
-  const loopBadge = document.getElementById('loopBadge');
-  const btnOpenStreamBar = document.getElementById('btnOpenStreamBar');
-
-  const btnSpeedDown = document.getElementById('btnSpeedDown');
-  const speedValue = document.getElementById('speedValue');
-  const btnSpeedUp = document.getElementById('btnSpeedUp');
-  const qualitySelect = document.getElementById('qualitySelect');
-
-  const btnMute = document.getElementById('btnMute');
+  const btnHudMute = document.getElementById('btnHudMute');
   const volHighSvg = document.getElementById('volHighSvg');
   const volMuteSvg = document.getElementById('volMuteSvg');
-  const volumeSlider = document.getElementById('volumeSlider');
-  const volumePercent = document.getElementById('volumePercent');
+  const btnHudShare = document.getElementById('btnHudShare');
+  const btnHudRotate = document.getElementById('btnHudRotate');
+  const btnHudFullscreen = document.getElementById('btnHudFullscreen');
 
-  // Network Stream Modal Dialog
-  const streamModal = document.getElementById('streamModal');
-  const urlModalInput = document.getElementById('urlModalInput');
-  const btnModalPaste = document.getElementById('btnModalPaste');
-  const btnModalPasteStream = document.getElementById('btnModalPasteStream');
-  const btnModalStream = document.getElementById('btnModalStream');
-  const modalBtnText = document.getElementById('modalBtnText');
-  const modalSpinner = document.getElementById('modalSpinner');
-  const btnModalCancel = document.getElementById('btnModalCancel');
-  const btnModalClose = document.getElementById('btnModalClose');
-  const modalError = document.getElementById('modalError');
+  // DOM: Bottom Sheets
+  const sheetBackdrop = document.getElementById('sheetBackdrop');
+  const audioSheet = document.getElementById('audioSheet');
+  const subtitleSheet = document.getElementById('subtitleSheet');
+  const speedSheet = document.getElementById('speedSheet');
+  const settingsSheet = document.getElementById('settingsSheet');
 
-  // Audio & Subtitle Controls & OSD
-  const audioTrackSelect = document.getElementById('audioTrackSelect');
-  const btnSubtitles = document.getElementById('btnSubtitles');
-  const subtitleSelect = document.getElementById('subtitleSelect');
-  const vlcSubtitleOverlay = document.getElementById('vlcSubtitleOverlay');
-  const vlcOsd = document.getElementById('vlcOsd');
+  const audioTracksList = document.getElementById('audioTracksList');
+  const subtitleTracksList = document.getElementById('subtitleTracksList');
+  const btnLoadCustomSub = document.getElementById('btnLoadCustomSub');
+  const customSubLabel = document.getElementById('customSubLabel');
   const subFileInput = document.getElementById('subFileInput');
-
-  // Menubar Audio & Subtitle elements
-  const menuAudioTracksList = document.getElementById('menuAudioTracksList');
-  const menuCycleAudio = document.getElementById('menuCycleAudio');
-  const menuAddSubtitleFile = document.getElementById('menuAddSubtitleFile');
-  const menuSubtitleTracksList = document.getElementById('menuSubtitleTracksList');
-  const menuCycleSubtitle = document.getElementById('menuCycleSubtitle');
-  const menuSubDelayDown = document.getElementById('menuSubDelayDown');
-  const menuSubDelayUp = document.getElementById('menuSubDelayUp');
-  const menuSubtitleSettings = document.getElementById('menuSubtitleSettings');
-
-  // Subtitle Settings Modal Elements
-  const subSettingsModal = document.getElementById('subSettingsModal');
-  const btnSubSettingsClose = document.getElementById('btnSubSettingsClose');
-  const btnSubSettingsClose2 = document.getElementById('btnSubSettingsClose2');
-  const modalAudioSelect = document.getElementById('modalAudioSelect');
-  const btnModalCycleAudio = document.getElementById('btnModalCycleAudio');
-  const modalSubSelect = document.getElementById('modalSubSelect');
-  const btnModalCycleSub = document.getElementById('btnModalCycleSub');
-  const btnBrowseSub = document.getElementById('btnBrowseSub');
-  const subFileName = document.getElementById('subFileName');
-  const subDelayDisplay = document.getElementById('subDelayDisplay');
-  const subDelaySlider = document.getElementById('subDelaySlider');
   const btnSubDelayMinus = document.getElementById('btnSubDelayMinus');
   const btnSubDelayPlus = document.getElementById('btnSubDelayPlus');
   const btnSubDelayReset = document.getElementById('btnSubDelayReset');
+  const subDelayDisplay = document.getElementById('subDelayDisplay');
   const subSizeSelect = document.getElementById('subSizeSelect');
   const subColorSelect = document.getElementById('subColorSelect');
-  const subBgSelect = document.getElementById('subBgSelect');
-  const subPreviewBox = document.getElementById('subPreviewBox');
-  const subPreviewText = document.getElementById('subPreviewText');
+  const speedChips = document.querySelectorAll('.speed-chip');
 
-  // State Management
+  const localServerInput = document.getElementById('localServerInput');
+  const btnSaveServer = document.getElementById('btnSaveServer');
+  const btnResetServer = document.getElementById('btnResetServer');
+
+  // App State
+  let activeView = 'home';
   let hlsInstance = null;
-  let currentPlaylist = [];
-  let currentTrackIndex = -1;
-  let currentQualities = [];
-  let currentQualityIndex = 0;
+  let activeSheet = null;
+  let currentPlayingUrl = '';
+  let currentPlayingTitle = '';
   let currentMediaDuration = 0;
-  let currentStreamSeekOffset = 0;
   let isSeeking = false;
   let showRemainingTime = false;
-  let loopMode = 'off'; // 'off' | 'all' | 'one'
   let currentPlaybackRate = 1.0;
-  let fullscreenHideTimer = null;
+  let currentBrightness = 1.0;
+  let hudHideTimer = null;
+  let osdTimer = null;
+  let hudIndicatorTimer = null;
+  let isLandscape = false;
+  let isFullscreen = false;
 
   // Audio & Subtitle State
   let availableAudioTracks = [];
@@ -165,151 +137,225 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentSubTrack = -1;
   let customSubtitles = [];
   let subtitleDelayMs = 0;
-  let osdTimer = null;
 
-  // 1. Initial State: Open Network Stream Modal automatically on page load
-  const urlParams = new URLSearchParams(window.location.search);
-  const autoUrl = urlParams.get('url');
-  if (autoUrl) {
-    urlModalInput.value = autoUrl;
-    setTimeout(() => {
-      handleStreamSubmit();
-    }, 100);
-  } else {
-    openStreamModal();
-    setTimeout(() => urlModalInput.focus(), 200);
+  // Native Android Helpers
+  function triggerHaptic() {
+    try {
+      if (window.PVPNative && typeof window.PVPNative.triggerHaptic === 'function') {
+        window.PVPNative.triggerHaptic();
+      }
+    } catch (_) {}
   }
 
-  // Modal Open/Close Controls
-  function openStreamModal() {
-    modalError.classList.add('hidden');
-    streamModal.classList.remove('hidden');
-    urlModalInput.focus();
-    urlModalInput.select();
+  function keepScreenOn(enable) {
+    try {
+      if (window.PVPNative && typeof window.PVPNative.keepScreenOn === 'function') {
+        window.PVPNative.keepScreenOn(enable);
+      }
+    } catch (_) {}
   }
 
-  function closeStreamModal() {
-    streamModal.classList.add('hidden');
+  function setOrientation(landscape) {
+    try {
+      if (window.PVPNative && typeof window.PVPNative.setOrientation === 'function') {
+        window.PVPNative.setOrientation(landscape);
+      }
+    } catch (_) {}
   }
 
-  btnModalCancel.addEventListener('click', closeStreamModal);
-  btnModalClose.addEventListener('click', closeStreamModal);
-  btnQuickOpen.addEventListener('click', openStreamModal);
-  btnOpenStreamBar.addEventListener('click', openStreamModal);
-  menuOpenStream.addEventListener('click', openStreamModal);
-  if (btnMenuBarStream) {
-    btnMenuBarStream.addEventListener('click', openStreamModal);
+  function setNativeFullscreen(enable) {
+    try {
+      if (window.PVPNative && typeof window.PVPNative.setFullscreen === 'function') {
+        window.PVPNative.setFullscreen(enable);
+      }
+    } catch (_) {}
   }
 
-  // Paste button inside modal
-  btnModalPaste.addEventListener('click', async () => {
+  function shareUrl(url) {
+    try {
+      if (window.PVPNative && typeof window.PVPNative.shareUrl === 'function') {
+        window.PVPNative.shareUrl(url);
+      } else if (navigator.share) {
+        navigator.share({ title: currentPlayingTitle || 'Video', url: url });
+      }
+    } catch (_) {}
+  }
+
+  // ==========================================
+  // VIEW NAVIGATION & ANDROID BACK HANDLER
+  // ==========================================
+  function switchView(viewName) {
+    if (viewName === 'player') {
+      homeView.classList.remove('active-view');
+      playerView.classList.add('active-view');
+      activeView = 'player';
+      keepScreenOn(true);
+      setNativeFullscreen(true);
+      showHud();
+    } else {
+      stopPlayback();
+      playerView.classList.remove('active-view');
+      homeView.classList.add('active-view');
+      activeView = 'home';
+      keepScreenOn(false);
+      setNativeFullscreen(false);
+      setOrientation(false);
+      isLandscape = false;
+      isFullscreen = false;
+      renderHistory();
+    }
+  }
+
+  window.handleAndroidBack = function() {
+    // If a bottom sheet is open, close it first
+    if (activeSheet) {
+      closeActiveSheet();
+      triggerHaptic();
+      return true;
+    }
+    // If in player view, exit back to home view
+    if (activeView === 'player') {
+      switchView('home');
+      triggerHaptic();
+      return true;
+    }
+    // If on home view, return false to allow Android to minimize/exit
+    return false;
+  };
+
+  btnPlayerBack.addEventListener('click', () => {
+    triggerHaptic();
+    switchView('home');
+  });
+
+  // ==========================================
+  // INPUT CONTROLS & CLIPBOARD AUTO-DETECTION
+  // ==========================================
+  urlInput.addEventListener('input', () => {
+    btnClearInput.classList.toggle('hidden', !urlInput.value);
+    homeErrorMsg.classList.add('hidden');
+  });
+
+  btnClearInput.addEventListener('click', () => {
+    urlInput.value = '';
+    btnClearInput.classList.add('hidden');
+    urlInput.focus();
+    triggerHaptic();
+  });
+
+  btnPasteInput.addEventListener('click', async () => {
+    triggerHaptic();
     try {
       const text = await navigator.clipboard.readText();
       if (text) {
-        urlModalInput.value = text.trim();
-        urlModalInput.focus();
+        urlInput.value = text.trim();
+        btnClearInput.classList.remove('hidden');
+        homeErrorMsg.classList.add('hidden');
       }
-    } catch {
-      urlModalInput.focus();
+    } catch (_) {
+      urlInput.focus();
     }
   });
 
-  urlModalInput.addEventListener('keydown', (e) => {
+  urlInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleStreamSubmit();
     }
   });
 
-  btnModalStream.addEventListener('click', handleStreamSubmit);
+  btnStartStream.addEventListener('click', () => {
+    triggerHaptic();
+    handleStreamSubmit();
+  });
 
-  // Instant One-Tap Paste & Play (BlackHole Style)
   async function pasteAndPlay() {
+    triggerHaptic();
     try {
       const text = await navigator.clipboard.readText();
       const cleanUrl = text ? text.trim() : '';
       if (!cleanUrl || (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://'))) {
-        showVlcOsd('Clipboard does not contain a video URL');
-        openStreamModal();
+        showHomeError('Clipboard does not contain a valid URL');
         return;
       }
-      closeStreamModal();
+      urlInput.value = cleanUrl;
+      btnClearInput.classList.remove('hidden');
       if (clipboardBanner) clipboardBanner.classList.add('hidden');
-      urlModalInput.value = cleanUrl;
-      showVlcOsd('Streaming URL from clipboard...');
       handleStreamSubmit();
-    } catch (err) {
-      openStreamModal();
-      urlModalInput.focus();
-      showModalError('Please paste your video URL into the box above.');
+    } catch (_) {
+      showHomeError('Could not read clipboard. Please paste link manually.');
+      urlInput.focus();
     }
   }
 
-  if (btnQuickPastePlay) {
-    btnQuickPastePlay.addEventListener('click', pasteAndPlay);
-  }
-  if (btnMenuBarPastePlay) {
-    btnMenuBarPastePlay.addEventListener('click', pasteAndPlay);
-  }
-  if (btnModalPasteStream) {
-    btnModalPasteStream.addEventListener('click', async () => {
-      try {
-        const text = await navigator.clipboard.readText();
-        if (text && (text.trim().startsWith('http://') || text.trim().startsWith('https://'))) {
-          urlModalInput.value = text.trim();
-        }
-      } catch (_) {}
-      handleStreamSubmit();
-    });
-  }
+  btnHomePastePlay.addEventListener('click', pasteAndPlay);
 
-  // BlackHole-Style Clipboard Auto-Detection on Focus
-  let lastDetectedClipboardUrl = '';
-  let dismissedClipboardUrl = '';
+  // BlackHole-style clipboard auto-detection
+  let lastCheckedClip = '';
+  let dismissedClip = '';
 
-  async function checkClipboardForVideoUrl() {
+  async function checkClipboardForVideo() {
+    if (activeView === 'player') return;
     try {
       if (!navigator.clipboard || !navigator.clipboard.readText) return;
-      if (!videoPlayer.paused && videoPlayer.currentTime > 0) return;
       const text = (await navigator.clipboard.readText() || '').trim();
       if (!text || (!text.startsWith('http://') && !text.startsWith('https://'))) return;
-      if (text === dismissedClipboardUrl || text === lastDetectedClipboardUrl) return;
+      if (text === dismissedClip || text === lastCheckedClip) return;
 
-      const isLikelyVideo = /(?:youtube\.com|youtu\.be|instagram\.com|tiktok\.com|twitter\.com|x\.com|facebook\.com|fb\.watch|reddit\.com|vimeo\.com|dailymotion\.com|\.mp4|\.m3u8|\.mkv|\.mov|\.webm|\/video\/|\/reel\/|\/watch|\/download\/)/i.test(text);
-      if (isLikelyVideo) {
-        lastDetectedClipboardUrl = text;
-        if (clipboardUrlText) {
-          clipboardUrlText.textContent = text.length > 50 ? text.slice(0, 48) + '...' : text;
-        }
-        if (clipboardBanner) {
-          clipboardBanner.classList.remove('hidden');
-        }
+      const isVideoLink = /(?:youtube\.com|youtu\.be|instagram\.com|tiktok\.com|twitter\.com|x\.com|twitch\.tv|vimeo\.com|\.mp4|\.m3u8|\.mkv|\.mov|\.webm|\/video\/|\/reel\/)/i.test(text);
+      if (isVideoLink) {
+        lastCheckedClip = text;
+        clipboardUrlText.textContent = text.length > 40 ? text.slice(0, 38) + '...' : text;
+        clipboardBanner.classList.remove('hidden');
       }
     } catch (_) {}
   }
 
-  if (btnClipboardPlay) {
-    btnClipboardPlay.addEventListener('click', () => {
-      if (clipboardBanner) clipboardBanner.classList.add('hidden');
-      if (lastDetectedClipboardUrl) {
-        urlModalInput.value = lastDetectedClipboardUrl;
-        handleStreamSubmit();
-      }
-    });
-  }
-
-  if (btnClipboardDismiss) {
-    btnClipboardDismiss.addEventListener('click', () => {
-      dismissedClipboardUrl = lastDetectedClipboardUrl;
-      if (clipboardBanner) clipboardBanner.classList.add('hidden');
-    });
-  }
-
-  window.addEventListener('focus', () => {
-    setTimeout(checkClipboardForVideoUrl, 400);
+  btnClipboardPlay.addEventListener('click', () => {
+    triggerHaptic();
+    clipboardBanner.classList.add('hidden');
+    if (lastCheckedClip) {
+      urlInput.value = lastCheckedClip;
+      btnClearInput.classList.remove('hidden');
+      handleStreamSubmit();
+    }
   });
 
-  // Resolve media client-side without any backend server (100% offline & local)
+  btnClipboardDismiss.addEventListener('click', () => {
+    triggerHaptic();
+    dismissedClip = lastCheckedClip;
+    clipboardBanner.classList.add('hidden');
+  });
+
+  window.addEventListener('focus', () => {
+    setTimeout(checkClipboardForVideo, 500);
+  });
+
+  // Platform quick chips
+  platformChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      triggerHaptic();
+      urlInput.focus();
+      const platform = chip.dataset.platform;
+      const sampleMap = {
+        'hls': 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        'direct': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
+      };
+      if (sampleMap[platform]) {
+        urlInput.value = sampleMap[platform];
+        btnClearInput.classList.remove('hidden');
+      }
+    });
+  });
+
+  function showHomeError(msg) {
+    homeErrorMsg.textContent = msg;
+    homeErrorMsg.classList.remove('hidden');
+  }
+
+  // ==========================================
+  // MEDIA EXTRACTION & STREAM SUBMIT
+  // ==========================================
   function resolveMediaClientSide(url, fallbackTitle) {
     if (!url) return null;
     const rawUrl = url.trim();
@@ -347,22 +393,6 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    // Dailymotion
-    const isDm = /dailymotion\.com\/video\/([a-zA-Z0-9]+)/.exec(rawUrl);
-    if (isDm) {
-      return {
-        success: true,
-        title: fallbackTitle || 'Dailymotion Video',
-        is_embed_fallback: true,
-        qualities: [{
-          label: 'Auto (Embed)',
-          type: 'embed',
-          video_url: `https://www.dailymotion.com/embed/video/${isDm[1]}?autoplay=1`
-        }],
-        default_quality_index: 0
-      };
-    }
-
     // Direct Media / HLS Stream (.m3u8, .mp4, etc.)
     const isHls = /\.m3u8($|\?)/i.test(rawUrl);
     const isDirect = isHls || /\.(mp4|webm|mov|mkv|ogg|mp3|flv|avi)($|\?)/i.test(rawUrl);
@@ -384,159 +414,27 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
-  // Handle URL Submission (Single Video or Playlist)
   async function handleStreamSubmit() {
-    const rawUrl = urlModalInput.value.trim();
+    const rawUrl = urlInput.value.trim();
     if (!rawUrl) {
-      showModalError('Please enter or paste a valid video URL.');
+      showHomeError('Please paste or enter a video URL');
       return;
     }
 
-    modalError.classList.add('hidden');
-    setModalLoading(true);
+    homeErrorMsg.classList.add('hidden');
+    setHomeLoading(true);
 
     try {
       let finalData = null;
 
-      // Try local FastAPI backend server first
+      // 1. Try local FastAPI server if reachable
       try {
         const timeoutController = new AbortController();
-        const timeoutId = setTimeout(() => timeoutController.abort(), 6000);
+        const timeoutId = setTimeout(() => timeoutController.abort(), 4000);
         const res = await fetch(API_BASE + '/api/extract', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url: rawUrl }),
-          signal: timeoutController.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (res.ok) {
-          const data = await res.json();
-          if (data && (data.success || data.qualities?.length || data.entries?.length)) {
-            finalData = data;
-          }
-        }
-      } catch (netErr) {
-        console.warn('Local server unreachable, attempting client-side playback:', netErr);
-      }
-
-      // Check if YouTube needs embed fallback
-      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
-      if (finalData && isYouTubeUrl && (!finalData.qualities?.length || (finalData.qualities?.length === 1 && finalData.qualities[0].label === 'Direct'))) {
-        finalData = null; // Let client-side embed handle YouTube cleanly
-      }
-
-      // If backend was unreachable or returned incomplete data, resolve client-side
-      if (!finalData) {
-        finalData = resolveMediaClientSide(rawUrl);
-      }
-
-      if (!finalData) {
-        throw new Error('Could not stream media. Make sure local PVP server is active on ' + (API_BASE || '127.0.0.1:8000') + ' or enter a direct video link.');
-      }
-
-      // Close modal immediately upon valid response
-      closeStreamModal();
-
-      if (finalData.is_playlist && finalData.entries && finalData.entries.length > 0) {
-        // Handle Playlist
-        setupPlaylist(finalData);
-      } else {
-        // Handle Single Video
-        currentPlaylist = [{
-          index: 0,
-          title: finalData.title || 'Video',
-          duration_str: finalData.duration_str || '--:--',
-          url: rawUrl,
-          data: finalData
-        }];
-        currentTrackIndex = 0;
-        renderPlaylistUI();
-        loadVideoData(finalData);
-      }
-    } catch (err) {
-      console.error(err);
-      showModalError(err.message || 'Could not stream media. Check the link.');
-    } finally {
-      setModalLoading(false);
-    }
-  }
-
-  // Setup Playlist
-  function setupPlaylist(data) {
-    currentPlaylist = data.entries.map((entry, idx) => ({
-      index: idx,
-      title: entry.title,
-      duration_str: entry.duration_str,
-      url: entry.url,
-      data: idx === 0 ? data : null
-    }));
-
-    currentTrackIndex = 0;
-    playlistTitle.textContent = data.playlist_title || 'Playlist';
-    playlistCount.textContent = `(${currentPlaylist.length} items)`;
-
-    renderPlaylistUI();
-    playlistPanel.classList.remove('hidden');
-
-    loadVideoData(data);
-  }
-
-  // Render Playlist Table
-  function renderPlaylistUI() {
-    playlistItems.innerHTML = '';
-    currentPlaylist.forEach((item, idx) => {
-      const row = document.createElement('div');
-      row.className = `playlist-item ${idx === currentTrackIndex ? 'active' : ''}`;
-      
-      const colNum = document.createElement('span');
-      colNum.className = 'col-num';
-      colNum.textContent = String(idx + 1);
-
-      const colTitle = document.createElement('span');
-      colTitle.className = 'col-title';
-      colTitle.title = item.title || 'Track';
-      colTitle.textContent = item.title || 'Track';
-
-      const colDur = document.createElement('span');
-      colDur.className = 'col-dur';
-      colDur.textContent = item.duration_str || '--:--';
-
-      row.appendChild(colNum);
-      row.appendChild(colTitle);
-      row.appendChild(colDur);
-
-      row.addEventListener('click', () => {
-        playTrackByIndex(idx);
-      });
-      playlistItems.appendChild(row);
-    });
-  }
-
-  // Play Specific Track in Playlist
-  async function playTrackByIndex(index) {
-    if (index < 0 || index >= currentPlaylist.length) return;
-    currentTrackIndex = index;
-    renderPlaylistUI();
-
-    const track = currentPlaylist[index];
-    windowTitle.textContent = `${track.title} - PVP`;
-
-    if (track.data && track.data.qualities) {
-      loadVideoData(track.data);
-      return;
-    }
-
-    showVideoLoader(`Loading track ${index + 1}: ${track.title}...`);
-    try {
-      let finalData = null;
-      try {
-        const timeoutController = new AbortController();
-        const timeoutId = setTimeout(() => timeoutController.abort(), 6000);
-        const res = await fetch(API_BASE + '/api/extract', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: track.url }),
           signal: timeoutController.signal
         });
         clearTimeout(timeoutId);
@@ -549,1135 +447,819 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       } catch (_) {}
 
-      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(track.url);
+      // 2. Client-side fallback resolution (100% offline & local)
+      const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
       if (finalData && isYouTubeUrl && (!finalData.qualities?.length || (finalData.qualities?.length === 1 && finalData.qualities[0].label === 'Direct'))) {
         finalData = null;
       }
 
       if (!finalData) {
-        finalData = resolveMediaClientSide(track.url, track.title);
+        finalData = resolveMediaClientSide(rawUrl);
       }
 
-      if (finalData) {
-        track.data = finalData;
-        loadVideoData(finalData);
-      } else {
-        throw new Error('Track extraction failed');
+      if (!finalData) {
+        throw new Error('Unsupported video link. Please verify URL format.');
       }
-    } catch (e) {
-      console.error(e);
-      hideVideoLoader();
-      alert(`Could not load track: ${track.title}`);
+
+      currentPlayingUrl = rawUrl;
+      currentPlayingTitle = finalData.title || 'Video Stream';
+      saveToHistory(rawUrl, currentPlayingTitle);
+
+      switchView('player');
+      loadMedia(finalData);
+
+    } catch (err) {
+      showHomeError(err.message || 'Could not stream video. Please check the link.');
+    } finally {
+      setHomeLoading(false);
     }
   }
 
-  // Next / Previous Playlist Navigation
-  function playNextTrack() {
-    if (currentPlaylist.length <= 1) {
-      if (loopMode === 'one') {
-        seekToTime(0);
-        videoPlayer.play();
-      }
+  function setHomeLoading(loading) {
+    if (loading) {
+      streamBtnText.textContent = 'Opening Stream...';
+      homeSpinner.classList.remove('hidden');
+      btnStartStream.style.opacity = '0.8';
+      btnStartStream.disabled = true;
+    } else {
+      streamBtnText.textContent = 'Stream Video';
+      homeSpinner.classList.add('hidden');
+      btnStartStream.style.opacity = '1';
+      btnStartStream.disabled = false;
+    }
+  }
+
+  // ==========================================
+  // PLAYBACK ENGINE (HLS, HTML5 VIDEO, EMBED)
+  // ==========================================
+  function loadMedia(data) {
+    playerTitle.textContent = data.title || 'PVP Video Player';
+    showPlayerLoader('Connecting media...');
+    resetPlayerState();
+
+    const quality = (data.qualities && data.qualities[0]) ? data.qualities[0] : null;
+
+    if (!quality) {
+      showOsd('Error: No playable stream found');
+      hidePlayerLoader();
       return;
     }
 
-    if (currentTrackIndex + 1 < currentPlaylist.length) {
-      playTrackByIndex(currentTrackIndex + 1);
-    } else if (loopMode === 'all') {
-      playTrackByIndex(0);
-    }
-  }
-
-  function playPrevTrack() {
-    const cur = videoPlayer.currentTime + currentStreamSeekOffset;
-    if (cur > 3) {
-      seekToTime(0);
-      return;
-    }
-    if (currentTrackIndex > 0) {
-      playTrackByIndex(currentTrackIndex - 1);
-    } else if (loopMode === 'all') {
-      playTrackByIndex(currentPlaylist.length - 1);
-    }
-  }
-
-  btnNext.addEventListener('click', playNextTrack);
-  btnPrev.addEventListener('click', playPrevTrack);
-  menuNext.addEventListener('click', playNextTrack);
-  menuPrev.addEventListener('click', playPrevTrack);
-
-  videoPlayer.addEventListener('ended', () => {
-    if (loopMode === 'one') {
-      seekToTime(0);
-      videoPlayer.play();
-    } else {
-      playNextTrack();
-    }
-  });
-
-  // Loop Mode Toggle (Off -> All -> One)
-  btnLoop.addEventListener('click', () => {
-    if (loopMode === 'off') {
-      loopMode = 'all';
-      loopBadge.textContent = 'All';
-      btnLoop.classList.add('active');
-    } else if (loopMode === 'all') {
-      loopMode = 'one';
-      loopBadge.textContent = '1';
-    } else {
-      loopMode = 'off';
-      loopBadge.textContent = 'Off';
-      btnLoop.classList.remove('active');
-    }
-  });
-
-  // Toggle Playlist Panel
-  function togglePlaylist() {
-    playlistPanel.classList.toggle('hidden');
-  }
-
-  btnPlaylistToggle.addEventListener('click', togglePlaylist);
-  btnClosePlaylist.addEventListener('click', togglePlaylist);
-  menuTogglePlaylist.addEventListener('click', togglePlaylist);
-  menuViewPlaylist.addEventListener('click', togglePlaylist);
-
-  // Load Video & Guaranteed Autoplay
-  function loadVideoData(data) {
-    coneScreen.classList.add('hidden');
-    videoPlayer.classList.remove('hidden');
-    windowTitle.textContent = `${data.title || 'Video'} - PVP`;
-
-    // Extract exact duration from metadata
-    currentMediaDuration = (typeof data.duration === 'number' && data.duration > 0) ? data.duration : 0;
-    currentStreamSeekOffset = 0;
-
-    if (currentMediaDuration > 0) {
-      timeTotal.textContent = formatTime(currentMediaDuration);
-    } else {
-      timeTotal.textContent = data.duration_str || '00:00:00';
-    }
-
-    currentQualities = data.qualities || [];
-    qualitySelect.innerHTML = '';
-
-    currentQualities.forEach((q, idx) => {
-      const opt = document.createElement('option');
-      opt.value = idx;
-      opt.textContent = q.label;
-      qualitySelect.appendChild(opt);
-    });
-
-    currentQualityIndex = data.default_quality_index ?? 0;
-    qualitySelect.value = currentQualityIndex;
-
-    loadStreamQuality(currentQualityIndex, 0);
-  }
-
-  function loadStreamQuality(index, startTime = 0) {
-    if (!currentQualities || !currentQualities[index]) return;
-    currentQualityIndex = index;
-    const q = currentQualities[index];
-
-    if (hlsInstance) {
-      hlsInstance.destroy();
-      hlsInstance = null;
-    }
-
-    videoPlayer.autoplay = true;
-
-    if (q.type === 'embed') {
+    if (quality.type === 'embed' || data.is_embed_fallback) {
+      // Embed mode (YouTube iframe)
       videoPlayer.classList.add('hidden');
-      videoPlayer.pause();
-      if (embedFrame) {
-        embedFrame.classList.remove('hidden');
-        embedFrame.src = q.video_url;
-      }
-      hideVideoLoader();
-      updatePlayPauseUI(true);
+      embedFrame.src = quality.video_url;
+      embedFrame.classList.remove('hidden');
+      hidePlayerLoader();
+      updatePlayPauseButton(true);
+      showOsd('Streaming in Privacy Embed Mode');
       return;
-    } else {
-      if (embedFrame) {
-        embedFrame.classList.add('hidden');
-        embedFrame.src = '';
-      }
-      videoPlayer.classList.remove('hidden');
     }
 
-    if (q.is_hls) {
-      currentStreamSeekOffset = 0;
-      const hlsSource = q.video_url.startsWith('/') ? API_BASE + q.video_url : q.video_url;
-      if (Hls.isSupported()) {
-        hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
-        hlsInstance.loadSource(hlsSource);
-        hlsInstance.attachMedia(videoPlayer);
-        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-          updateAudioTracksFromHls();
-          updateSubtitleTracksFromHls();
-          if (startTime > 0) videoPlayer.currentTime = startTime;
-          triggerAutoplay();
-        });
-        hlsInstance.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => {
-          updateAudioTracksFromHls();
-        });
-        hlsInstance.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, () => {
-          updateSubtitleTracksFromHls();
-        });
-      } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-        videoPlayer.src = hlsSource;
-        if (startTime > 0) videoPlayer.currentTime = startTime;
-        triggerAutoplay();
-      }
-    } else {
-      // Direct stream or live muxed stream
-      let streamUrl = q.play_url || q.video_url;
-      if (streamUrl && streamUrl.startsWith('/')) {
-        streamUrl = API_BASE + streamUrl;
-      }
-      if (q.type === 'mux' && startTime > 0) {
-        currentStreamSeekOffset = startTime;
-        const cleanBase = streamUrl.split('&start=')[0];
-        streamUrl = `${cleanBase}&start=${startTime}`;
-      } else {
-        currentStreamSeekOffset = 0;
-      }
+    // Direct / HLS mode
+    embedFrame.classList.add('hidden');
+    embedFrame.src = '';
+    videoPlayer.classList.remove('hidden');
 
-      videoPlayer.src = streamUrl;
-      videoPlayer.load();
+    const streamUrl = quality.video_url;
+    const isHls = quality.is_hls || /\.m3u8($|\?)/i.test(streamUrl);
 
-      if (q.type !== 'mux' && startTime > 0) {
-        videoPlayer.currentTime = startTime;
-      }
-
-      videoPlayer.addEventListener('canplay', () => {
-        triggerAutoplay();
-      }, { once: true });
-
-      triggerAutoplay();
-    }
-
-    applyPlaybackSpeed(currentPlaybackRate);
-  }
-
-  qualitySelect.addEventListener('change', () => {
-    const idx = parseInt(qualitySelect.value, 10);
-    const cur = videoPlayer.currentTime + currentStreamSeekOffset;
-    loadStreamQuality(idx, cur);
-  });
-
-  // =========================================================================
-  // VLC Authentic On-Screen Display (OSD) Notification
-  // =========================================================================
-  function showVlcOsd(text) {
-    if (!vlcOsd) return;
-    vlcOsd.textContent = text;
-    vlcOsd.classList.remove('hidden');
-    vlcOsd.style.opacity = '1';
-    clearTimeout(osdTimer);
-    osdTimer = setTimeout(() => {
-      vlcOsd.style.opacity = '0';
-      setTimeout(() => vlcOsd.classList.add('hidden'), 350);
-    }, 2200);
-  }
-
-  // =========================================================================
-  // Audio Track Switching (HLS & Multi-track Streams)
-  // =========================================================================
-  function updateAudioTracksFromHls() {
-    if (!hlsInstance) return;
-    availableAudioTracks = hlsInstance.audioTracks || [];
-    currentAudioTrack = hlsInstance.audioTrack;
-
-    // 1. Toolbar Select
-    audioTrackSelect.innerHTML = '';
-    if (availableAudioTracks.length === 0) {
-      const opt = document.createElement('option');
-      opt.value = -1;
-      opt.textContent = 'Audio: Default';
-      audioTrackSelect.appendChild(opt);
-    } else {
-      availableAudioTracks.forEach((t, idx) => {
-        const opt = document.createElement('option');
-        opt.value = idx;
-        const langName = t.name || t.lang || `Track ${idx + 1}`;
-        opt.textContent = `Audio: ${langName}`;
-        if (idx === currentAudioTrack) opt.selected = true;
-        audioTrackSelect.appendChild(opt);
-      });
-    }
-
-    // 2. Modal Select
-    modalAudioSelect.innerHTML = audioTrackSelect.innerHTML;
-
-    // 3. Menubar Dropdown
-    menuAudioTracksList.innerHTML = '';
-    if (availableAudioTracks.length === 0) {
-      const item = document.createElement('div');
-      item.className = 'dropdown-item active';
-      item.textContent = 'Default Track';
-      menuAudioTracksList.appendChild(item);
-    } else {
-      availableAudioTracks.forEach((t, idx) => {
-        const item = document.createElement('div');
-        item.className = `dropdown-item ${idx === currentAudioTrack ? 'active' : ''}`;
-        const langName = t.name || t.lang || `Track ${idx + 1}`;
-        item.innerHTML = `${langName} ${idx === currentAudioTrack ? '✓' : ''}`;
-        item.addEventListener('click', () => switchAudioTrack(idx));
-        menuAudioTracksList.appendChild(item);
-      });
-    }
-  }
-
-  function switchAudioTrack(idx) {
-    idx = parseInt(idx, 10);
-    if (!hlsInstance || availableAudioTracks.length === 0) return;
-    if (idx >= 0 && idx < availableAudioTracks.length) {
-      hlsInstance.audioTrack = idx;
-      currentAudioTrack = idx;
-      audioTrackSelect.value = idx;
-      modalAudioSelect.value = idx;
-      const t = availableAudioTracks[idx];
-      const langName = t.name || t.lang || `Track ${idx + 1}`;
-      showVlcOsd(`Audio track: ${langName}`);
-      updateAudioTracksFromHls();
-    }
-  }
-
-  function cycleAudioTrack() {
-    if (!hlsInstance || availableAudioTracks.length <= 1) return;
-    const nextIdx = (currentAudioTrack + 1) % availableAudioTracks.length;
-    switchAudioTrack(nextIdx);
-  }
-
-  audioTrackSelect.addEventListener('change', () => switchAudioTrack(audioTrackSelect.value));
-  modalAudioSelect.addEventListener('change', () => switchAudioTrack(modalAudioSelect.value));
-  btnModalCycleAudio.addEventListener('click', cycleAudioTrack);
-  menuCycleAudio.addEventListener('click', cycleAudioTrack);
-
-  // =========================================================================
-  // Subtitle Tracks & Settings
-  // =========================================================================
-  function updateSubtitleTracksFromHls() {
-    if (!hlsInstance) return;
-    availableSubTracks = hlsInstance.subtitleTracks || [];
-    currentSubTrack = hlsInstance.subtitleTrack;
-
-    // 1. Toolbar Select
-    subtitleSelect.innerHTML = '';
-    const offOpt = document.createElement('option');
-    offOpt.value = -1;
-    offOpt.textContent = 'Sub: Off';
-    subtitleSelect.appendChild(offOpt);
-
-    availableSubTracks.forEach((t, idx) => {
-      const opt = document.createElement('option');
-      opt.value = idx;
-      const langName = t.name || t.lang || `Track ${idx + 1}`;
-      opt.textContent = `Sub: ${langName}`;
-      if (idx === currentSubTrack) opt.selected = true;
-      subtitleSelect.appendChild(opt);
-    });
-
-    if (customSubtitles.length > 0) {
-      const customOpt = document.createElement('option');
-      customOpt.value = 'custom';
-      customOpt.textContent = 'Sub: Custom File';
-      if (currentSubTrack === 'custom') customOpt.selected = true;
-      subtitleSelect.appendChild(customOpt);
-    }
-
-    if (currentSubTrack === -1) offOpt.selected = true;
-
-    // 2. Modal Select
-    modalSubSelect.innerHTML = subtitleSelect.innerHTML;
-
-    // 3. Menubar Dropdown
-    menuSubtitleTracksList.innerHTML = '';
-    const offItem = document.createElement('div');
-    offItem.className = `dropdown-item ${currentSubTrack === -1 ? 'active' : ''}`;
-    offItem.innerHTML = `Disable ${currentSubTrack === -1 ? '✓' : ''}`;
-    offItem.addEventListener('click', () => switchSubtitleTrack(-1));
-    menuSubtitleTracksList.appendChild(offItem);
-
-    availableSubTracks.forEach((t, idx) => {
-      const item = document.createElement('div');
-      item.className = `dropdown-item ${idx === currentSubTrack ? 'active' : ''}`;
-      const langName = t.name || t.lang || `Track ${idx + 1}`;
-      item.innerHTML = `${langName} ${idx === currentSubTrack ? '✓' : ''}`;
-      item.addEventListener('click', () => switchSubtitleTrack(idx));
-      menuSubtitleTracksList.appendChild(item);
-    });
-
-    if (customSubtitles.length > 0) {
-      const customItem = document.createElement('div');
-      customItem.className = `dropdown-item ${currentSubTrack === 'custom' ? 'active' : ''}`;
-      customItem.innerHTML = `Custom File ${currentSubTrack === 'custom' ? '✓' : ''}`;
-      customItem.addEventListener('click', () => switchSubtitleTrack('custom'));
-      menuSubtitleTracksList.appendChild(customItem);
-    }
-
-    // Highlight CC button if active
-    if (currentSubTrack !== -1) {
-      btnSubtitles.classList.add('active');
-    } else {
-      btnSubtitles.classList.remove('active');
-    }
-  }
-
-  function switchSubtitleTrack(trackVal) {
-    if (trackVal === 'custom') {
-      currentSubTrack = 'custom';
-      if (hlsInstance) hlsInstance.subtitleTrack = -1;
-      showVlcOsd('Subtitle track: Custom file');
-    } else {
-      const idx = parseInt(trackVal, 10);
-      currentSubTrack = idx;
+    if (isHls && window.Hls && Hls.isSupported()) {
       if (hlsInstance) {
-        hlsInstance.subtitleTrack = idx;
+        hlsInstance.destroy();
       }
-      if (idx === -1) {
-        showVlcOsd('Subtitle track: Disable');
-        vlcSubtitleOverlay.classList.add('hidden');
-      } else if (availableSubTracks[idx]) {
-        const langName = availableSubTracks[idx].name || availableSubTracks[idx].lang || `Track ${idx + 1}`;
-        showVlcOsd(`Subtitle track: ${langName}`);
-      }
-    }
-    updateSubtitleTracksFromHls();
-  }
+      hlsInstance = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 90
+      });
+      hlsInstance.loadSource(streamUrl);
+      hlsInstance.attachMedia(videoPlayer);
 
-  function cycleSubtitleTrack() {
-    let options = [-1];
-    for (let i = 0; i < availableSubTracks.length; i++) options.push(i);
-    if (customSubtitles.length > 0) options.push('custom');
+      hlsInstance.on(Hls.Events.MANIFEST_PARSED, (evt, manifest) => {
+        setupHlsAudioAndSubs(manifest);
+        hidePlayerLoader();
+        videoPlayer.play().catch(() => {});
+      });
 
-    const curPos = options.indexOf(currentSubTrack);
-    const nextPos = (curPos + 1) % options.length;
-    switchSubtitleTrack(options[nextPos]);
-  }
-
-  subtitleSelect.addEventListener('change', () => switchSubtitleTrack(subtitleSelect.value));
-  modalSubSelect.addEventListener('change', () => switchSubtitleTrack(modalSubSelect.value));
-  btnModalCycleSub.addEventListener('click', cycleSubtitleTrack);
-  menuCycleSubtitle.addEventListener('click', cycleSubtitleTrack);
-
-  // Subtitle Synchronization / Delay
-  function adjustSubtitleDelay(deltaMs) {
-    subtitleDelayMs += deltaMs;
-    subDelayDisplay.textContent = `${subtitleDelayMs >= 0 ? '+' : ''}${subtitleDelayMs} ms`;
-    subDelaySlider.value = subtitleDelayMs;
-    showVlcOsd(`Subtitle delay: ${subtitleDelayMs >= 0 ? '+' : ''}${subtitleDelayMs} ms`);
-  }
-
-  subDelaySlider.addEventListener('input', () => {
-    subtitleDelayMs = parseInt(subDelaySlider.value, 10);
-    subDelayDisplay.textContent = `${subtitleDelayMs >= 0 ? '+' : ''}${subtitleDelayMs} ms`;
-  });
-
-  btnSubDelayMinus.addEventListener('click', () => adjustSubtitleDelay(-50));
-  btnSubDelayPlus.addEventListener('click', () => adjustSubtitleDelay(50));
-  menuSubDelayDown.addEventListener('click', () => adjustSubtitleDelay(-50));
-  menuSubDelayUp.addEventListener('click', () => adjustSubtitleDelay(50));
-  btnSubDelayReset.addEventListener('click', () => {
-    subtitleDelayMs = 0;
-    subDelaySlider.value = 0;
-    subDelayDisplay.textContent = '0 ms';
-    showVlcOsd('Subtitle delay: 0 ms');
-  });
-
-  // External Subtitle File Loader (.srt / .vtt)
-  btnBrowseSub.addEventListener('click', () => subFileInput.click());
-  menuAddSubtitleFile.addEventListener('click', () => subFileInput.click());
-
-  subFileInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target.result;
-      customSubtitles = parseSrtOrVtt(content);
-      subFileName.textContent = `${file.name} (${customSubtitles.length} cues)`;
-      switchSubtitleTrack('custom');
-      showVlcOsd(`Loaded subtitles: ${file.name}`);
-    };
-    reader.readAsText(file);
-  });
-
-  // Subtitle Parser (SRT & WebVTT)
-  function parseSrtOrVtt(content) {
-    const text = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-    const blocks = text.trim().split(/\n\s*\n/);
-    const cues = [];
-
-    function timeToSeconds(timeStr) {
-      if (!timeStr) return 0;
-      timeStr = timeStr.trim().replace(',', '.');
-      const parts = timeStr.split(':');
-      if (parts.length === 3) {
-        return parseFloat(parts[0]) * 3600 + parseFloat(parts[1]) * 60 + parseFloat(parts[2]);
-      } else if (parts.length === 2) {
-        return parseFloat(parts[0]) * 60 + parseFloat(parts[1]);
-      }
-      return 0;
-    }
-
-    blocks.forEach(block => {
-      const lines = block.split('\n');
-      let timeLineIdx = -1;
-      for (let i = 0; i < lines.length; i++) {
-        if (lines[i].includes('-->')) {
-          timeLineIdx = i;
-          break;
-        }
-      }
-      if (timeLineIdx !== -1) {
-        const timeParts = lines[timeLineIdx].split('-->');
-        if (timeParts.length === 2) {
-          const start = timeToSeconds(timeParts[0]);
-          const end = timeToSeconds(timeParts[1]);
-          const cueText = lines.slice(timeLineIdx + 1).join('\n').replace(/<[^>]+>/g, '').trim();
-          if (cueText) {
-            cues.push({ start, end, text: cueText });
+      hlsInstance.on(Hls.Events.ERROR, (evt, errData) => {
+        if (errData.fatal) {
+          switch (errData.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hlsInstance.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hlsInstance.recoverMediaError();
+              break;
+            default:
+              hlsInstance.destroy();
+              break;
           }
         }
-      }
-    });
-
-    return cues;
-  }
-
-  // Subtitle Appearance Customization
-  subSizeSelect.addEventListener('change', () => {
-    document.documentElement.style.setProperty('--sub-font-size', subSizeSelect.value);
-  });
-  subColorSelect.addEventListener('change', () => {
-    document.documentElement.style.setProperty('--sub-color', subColorSelect.value);
-  });
-  subBgSelect.addEventListener('change', () => {
-    document.documentElement.style.setProperty('--sub-bg', subBgSelect.value);
-  });
-
-  // Subtitle Settings Modal Open/Close
-  function openSubSettingsModal() {
-    subSettingsModal.classList.remove('hidden');
-    updateAudioTracksFromHls();
-    updateSubtitleTracksFromHls();
-  }
-
-  function closeSubSettingsModal() {
-    subSettingsModal.classList.add('hidden');
-  }
-
-  btnSubtitles.addEventListener('click', openSubSettingsModal);
-  menuSubtitleSettings.addEventListener('click', openSubSettingsModal);
-  btnSubSettingsClose.addEventListener('click', closeSubSettingsModal);
-  btnSubSettingsClose2.addEventListener('click', closeSubSettingsModal);
-
-  // Autoplay handler with audio policy fallback
-  function triggerAutoplay() {
-    applyPlaybackSpeed(currentPlaybackRate);
-    hideVideoLoader();
-
-    const playPromise = videoPlayer.play();
-    if (playPromise !== undefined) {
-      playPromise.then(() => {
-        updatePlayPauseUI(true);
-        unmutePrompt.classList.add('hidden');
-      }).catch(err => {
-        console.warn('Audio autoplay blocked, playing muted...', err);
-        videoPlayer.muted = true;
-        updateVolumeUI();
-        videoPlayer.play().then(() => {
-          updatePlayPauseUI(true);
-          unmutePrompt.classList.remove('hidden');
-        }).catch(e => console.error('Autoplay error:', e));
       });
-    }
-  }
-
-  // Play / Pause Toggle
-  function togglePlayPause() {
-    if (videoPlayer.paused || videoPlayer.ended) {
-      videoPlayer.play().then(() => updatePlayPauseUI(true));
     } else {
-      videoPlayer.pause();
-      updatePlayPauseUI(false);
+      // Native HTML5 Video playback
+      videoPlayer.src = streamUrl;
+      videoPlayer.load();
+      videoPlayer.play().catch(() => {});
     }
   }
 
-  btnPlayPause.addEventListener('click', togglePlayPause);
-  menuPlayPause.addEventListener('click', togglePlayPause);
-  videoPlayer.addEventListener('click', togglePlayPause);
-
-  videoPlayer.addEventListener('play', () => updatePlayPauseUI(true));
-  videoPlayer.addEventListener('pause', () => updatePlayPauseUI(false));
-
-  function updatePlayPauseUI(isPlaying) {
-    if (isPlaying) {
-      playSvg.classList.add('hidden');
-      pauseSvg.classList.remove('hidden');
-    } else {
-      playSvg.classList.remove('hidden');
-      pauseSvg.classList.add('hidden');
-    }
-  }
-
-  // Stop Action (S)
-  function stopPlayback() {
+  function resetPlayerState() {
     videoPlayer.pause();
     videoPlayer.currentTime = 0;
-    currentStreamSeekOffset = 0;
+    progressBar.style.width = '0%';
+    seekSlider.value = 0;
+    timeElapsed.textContent = '00:00';
+    timeTotal.textContent = '00:00';
+    currentMediaDuration = 0;
+    vlcSubtitleOverlay.textContent = '';
+    vlcSubtitleOverlay.classList.add('hidden');
+  }
+
+  function stopPlayback() {
     if (hlsInstance) {
       hlsInstance.destroy();
       hlsInstance = null;
     }
-    if (embedFrame) {
-      embedFrame.src = '';
-      embedFrame.classList.add('hidden');
-    }
-    videoPlayer.src = '';
-    videoPlayer.classList.add('hidden');
-    coneScreen.classList.remove('hidden');
-    updatePlayPauseUI(false);
-    windowTitle.textContent = 'PVP (Personal Video Player)';
-    timeElapsed.textContent = '00:00:00';
-    timeTotal.textContent = '00:00:00';
-    progressBar.style.width = '0%';
-    seekSlider.value = 0;
-
-    // Reset Audio & Subtitle UI
-    availableAudioTracks = [];
-    currentAudioTrack = -1;
-    availableSubTracks = [];
-    currentSubTrack = -1;
-    vlcSubtitleOverlay.classList.add('hidden');
-    audioTrackSelect.innerHTML = '<option value="-1">Audio: Default</option>';
-    subtitleSelect.innerHTML = '<option value="-1">Sub: Off</option>';
-    modalAudioSelect.innerHTML = '<option value="-1">Audio: Default</option>';
-    modalSubSelect.innerHTML = '<option value="-1">Sub: Off</option>';
-    menuAudioTracksList.innerHTML = '<div class="dropdown-item active">Default</div>';
-    menuSubtitleTracksList.innerHTML = '<div class="dropdown-item active">Disable</div>';
+    videoPlayer.pause();
+    videoPlayer.removeAttribute('src');
+    videoPlayer.load();
+    embedFrame.src = '';
+    embedFrame.classList.add('hidden');
   }
 
-  btnStop.addEventListener('click', stopPlayback);
-  menuStop.addEventListener('click', stopPlayback);
-  menuStopVideo.addEventListener('click', stopPlayback);
+  // Video Event Listeners
+  videoPlayer.addEventListener('loadedmetadata', () => {
+    currentMediaDuration = videoPlayer.duration || 0;
+    timeTotal.textContent = formatTime(currentMediaDuration);
+    hidePlayerLoader();
+  });
 
-  // Time & Progress Slider Updates
   videoPlayer.addEventListener('timeupdate', () => {
     if (isSeeking) return;
-
-    const cur = videoPlayer.currentTime + currentStreamSeekOffset;
-
-    // Custom Subtitle Rendering Loop
-    if (currentSubTrack === 'custom' && customSubtitles.length > 0) {
-      const curWithDelay = cur + (subtitleDelayMs / 1000);
-      const activeCue = customSubtitles.find(c => curWithDelay >= c.start && curWithDelay <= c.end);
-      if (activeCue) {
-        vlcSubtitleOverlay.textContent = activeCue.text;
-        vlcSubtitleOverlay.classList.remove('hidden');
-      } else {
-        vlcSubtitleOverlay.classList.add('hidden');
-      }
-    } else if (currentSubTrack === -1) {
-      vlcSubtitleOverlay.classList.add('hidden');
-    }
-
-    let dur = videoPlayer.duration;
-    if (!isFinite(dur) || isNaN(dur) || dur <= 0) {
-      dur = currentMediaDuration;
-    }
+    const cur = videoPlayer.currentTime || 0;
+    const dur = videoPlayer.duration || currentMediaDuration || 0;
 
     timeElapsed.textContent = formatTime(cur);
-
     if (dur > 0) {
-      const pct = Math.min(100, Math.max(0, (cur / dur) * 100));
+      const pct = (cur / dur) * 100;
       progressBar.style.width = `${pct}%`;
       seekSlider.value = pct;
-
       if (showRemainingTime) {
-        timeTotal.textContent = `-${formatTime(Math.max(0, dur - cur))}`;
+        const rem = dur - cur;
+        timeTotal.textContent = '-' + formatTime(rem > 0 ? rem : 0);
       } else {
         timeTotal.textContent = formatTime(dur);
       }
     }
-  });
 
-  // Toggle Remaining vs Total time display on click
-  timeTotal.addEventListener('click', () => {
-    showRemainingTime = !showRemainingTime;
-  });
-
-  // Unified Seek Logic
-  function seekToTime(targetTime) {
-    let dur = videoPlayer.duration;
-    if (!isFinite(dur) || isNaN(dur) || dur <= 0) {
-      dur = currentMediaDuration;
-    }
-    if (dur > 0) {
-      targetTime = Math.max(0, Math.min(dur, targetTime));
+    // Buffer bar
+    if (videoPlayer.buffered.length > 0 && dur > 0) {
+      const bufEnd = videoPlayer.buffered.end(videoPlayer.buffered.length - 1);
+      const bufPct = Math.min(100, (bufEnd / dur) * 100);
+      bufferBar.style.width = `${bufPct}%`;
     }
 
-    const q = currentQualities[currentQualityIndex];
-    if (q && q.type === 'mux') {
-      // For live muxed stream, reload stream with start parameter
-      loadStreamQuality(currentQualityIndex, targetTime);
+    // Custom Subtitle Sync
+    renderCustomSubtitles(cur);
+  });
+
+  videoPlayer.addEventListener('play', () => {
+    updatePlayPauseButton(true);
+    hidePlayerLoader();
+  });
+
+  videoPlayer.addEventListener('pause', () => {
+    updatePlayPauseButton(false);
+  });
+
+  videoPlayer.addEventListener('waiting', () => {
+    showPlayerLoader('Buffering...');
+  });
+
+  videoPlayer.addEventListener('playing', () => {
+    hidePlayerLoader();
+  });
+
+  videoPlayer.addEventListener('ended', () => {
+    updatePlayPauseButton(false);
+  });
+
+  function updatePlayPauseButton(isPlaying) {
+    if (isPlaying) {
+      hudPlaySvg.classList.add('hidden');
+      hudPauseSvg.classList.remove('hidden');
     } else {
-      videoPlayer.currentTime = targetTime;
+      hudPlaySvg.classList.remove('hidden');
+      hudPauseSvg.classList.add('hidden');
     }
   }
 
-  // Seek Slider Events
-  seekSlider.addEventListener('mousedown', () => { isSeeking = true; });
-  seekSlider.addEventListener('touchstart', () => { isSeeking = true; });
-
-  seekSlider.addEventListener('input', () => {
-    let dur = videoPlayer.duration;
-    if (!isFinite(dur) || isNaN(dur) || dur <= 0) {
-      dur = currentMediaDuration;
+  function togglePlayPause() {
+    triggerHaptic();
+    if (videoPlayer.paused) {
+      videoPlayer.play();
+    } else {
+      videoPlayer.pause();
     }
+  }
+
+  btnHudPlayPause.addEventListener('click', togglePlayPause);
+
+  // Scrubber / Seek
+  seekSlider.addEventListener('input', () => {
+    isSeeking = true;
+    const dur = videoPlayer.duration || currentMediaDuration || 0;
     if (dur > 0) {
-      const targetTime = (parseFloat(seekSlider.value) / 100) * dur;
-      timeElapsed.textContent = formatTime(targetTime);
+      const seekSec = (parseFloat(seekSlider.value) / 100) * dur;
       progressBar.style.width = `${seekSlider.value}%`;
+      timeElapsed.textContent = formatTime(seekSec);
     }
   });
 
   seekSlider.addEventListener('change', () => {
-    isSeeking = false;
-    let dur = videoPlayer.duration;
-    if (!isFinite(dur) || isNaN(dur) || dur <= 0) {
-      dur = currentMediaDuration;
-    }
+    const dur = videoPlayer.duration || currentMediaDuration || 0;
     if (dur > 0) {
-      const targetTime = (parseFloat(seekSlider.value) / 100) * dur;
-      seekToTime(targetTime);
+      videoPlayer.currentTime = (parseFloat(seekSlider.value) / 100) * dur;
+    }
+    isSeeking = false;
+    triggerHaptic();
+  });
+
+  // Time toggle
+  timeTotal.addEventListener('click', () => {
+    triggerHaptic();
+    showRemainingTime = !showRemainingTime;
+    const cur = videoPlayer.currentTime || 0;
+    const dur = videoPlayer.duration || currentMediaDuration || 0;
+    if (dur > 0) {
+      timeTotal.textContent = showRemainingTime ? '-' + formatTime(Math.max(0, dur - cur)) : formatTime(dur);
     }
   });
 
-  // Volume Controls (0% - 125% like VLC)
-  volumeSlider.addEventListener('input', () => {
-    const val = parseInt(volumeSlider.value, 10);
-    videoPlayer.volume = Math.min(1.0, val / 100);
-    videoPlayer.muted = false;
-    updateVolumeUI();
-  });
-
-  function toggleMute() {
-    videoPlayer.muted = !videoPlayer.muted;
-    updateVolumeUI();
+  // Relative Seek (±10s)
+  function seekRelative(seconds) {
+    triggerHaptic();
+    const dur = videoPlayer.duration || currentMediaDuration || 0;
+    const target = Math.max(0, Math.min(dur || 999999, videoPlayer.currentTime + seconds));
+    videoPlayer.currentTime = target;
   }
 
-  btnMute.addEventListener('click', toggleMute);
-  menuMute.addEventListener('click', toggleMute);
-  btnUnmute.addEventListener('click', () => {
-    videoPlayer.muted = false;
-    unmutePrompt.classList.add('hidden');
-    updateVolumeUI();
-  });
+  btnHudRewind.addEventListener('click', () => seekRelative(-10));
+  btnHudForward.addEventListener('click', () => seekRelative(10));
 
-  function updateVolumeUI() {
-    const isMuted = videoPlayer.muted || videoPlayer.volume === 0;
-    if (isMuted) {
+  // Audio Mute Toggle
+  btnHudMute.addEventListener('click', () => {
+    triggerHaptic();
+    videoPlayer.muted = !videoPlayer.muted;
+    if (videoPlayer.muted) {
       volHighSvg.classList.add('hidden');
       volMuteSvg.classList.remove('hidden');
-      volumePercent.textContent = '0%';
+      showOsd('Muted');
     } else {
       volHighSvg.classList.remove('hidden');
       volMuteSvg.classList.add('hidden');
-      const val = parseInt(volumeSlider.value, 10);
-      volumePercent.textContent = `${val}%`;
+      showOsd('Unmuted');
+    }
+  });
+
+  // Share
+  btnHudShare.addEventListener('click', () => {
+    triggerHaptic();
+    if (currentPlayingUrl) {
+      shareUrl(currentPlayingUrl);
+    }
+  });
+
+  // Fullscreen & Orientation
+  btnHudRotate.addEventListener('click', () => {
+    triggerHaptic();
+    isLandscape = !isLandscape;
+    setOrientation(isLandscape);
+    showOsd(isLandscape ? 'Landscape Mode' : 'Portrait Mode');
+  });
+
+  btnHudFullscreen.addEventListener('click', () => {
+    triggerHaptic();
+    isFullscreen = !isFullscreen;
+    setNativeFullscreen(isFullscreen);
+  });
+
+  // ==========================================
+  // TOUCH GESTURES (SWIPE VOLUME, BRIGHTNESS & DOUBLE TAP)
+  // ==========================================
+  let lastTapLeftTime = 0;
+  let lastTapRightTime = 0;
+  let touchStartY = 0;
+  let touchStartX = 0;
+  let touchStartVal = 0;
+  let isSwiping = false;
+  let swipeTarget = null; // 'brightness' | 'volume'
+
+  playerGestureZone.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    touchStartY = touch.clientY;
+    touchStartX = touch.clientX;
+    isSwiping = false;
+
+    const screenWidth = window.innerWidth;
+    swipeTarget = touch.clientX < screenWidth / 2 ? 'brightness' : 'volume';
+    touchStartVal = swipeTarget === 'brightness' ? currentBrightness : videoPlayer.volume;
+  }, { passive: true });
+
+  playerGestureZone.addEventListener('touchmove', (e) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const deltaY = touchStartY - touch.clientY;
+    const deltaX = Math.abs(touch.clientX - touchStartX);
+
+    // Only initiate vertical swipe if vertical movement > 20px and greater than horizontal movement
+    if (Math.abs(deltaY) > 20 && Math.abs(deltaY) > deltaX) {
+      isSwiping = true;
+      const change = deltaY / 300; // sensitivity
+
+      if (swipeTarget === 'brightness') {
+        currentBrightness = Math.max(0.15, Math.min(1.0, touchStartVal + change));
+        playerCanvas.style.filter = `brightness(${currentBrightness})`;
+        brightnessHudVal.textContent = Math.round(currentBrightness * 100) + '%';
+        showGestureHud(brightnessHud);
+      } else {
+        const newVol = Math.max(0, Math.min(1.0, touchStartVal + change));
+        videoPlayer.volume = newVol;
+        videoPlayer.muted = false;
+        volHighSvg.classList.remove('hidden');
+        volMuteSvg.classList.add('hidden');
+        volumeHudVal.textContent = Math.round(newVol * 100) + '%';
+        showGestureHud(volumeHud);
+      }
+    }
+  }, { passive: true });
+
+  playerGestureZone.addEventListener('touchend', (e) => {
+    if (!isSwiping) {
+      // Tap detected
+      const touchX = e.changedTouches[0].clientX;
+      const screenWidth = window.innerWidth;
+      const now = Date.now();
+
+      if (touchX < screenWidth * 0.35) {
+        // Left side tap -> Check double tap
+        if (now - lastTapLeftTime < 320) {
+          seekRelative(-10);
+          showRipple(rippleLeft);
+          lastTapLeftTime = 0;
+          return;
+        }
+        lastTapLeftTime = now;
+      } else if (touchX > screenWidth * 0.65) {
+        // Right side tap -> Check double tap
+        if (now - lastTapRightTime < 320) {
+          seekRelative(10);
+          showRipple(rippleRight);
+          lastTapRightTime = 0;
+          return;
+        }
+        lastTapRightTime = now;
+      }
+
+      // Single tap center -> toggle HUD
+      toggleHud();
+    }
+  });
+
+  function showRipple(rippleEl) {
+    rippleEl.classList.remove('active');
+    void rippleEl.offsetWidth; // trigger reflow
+    rippleEl.classList.add('active');
+    setTimeout(() => rippleEl.classList.remove('active'), 500);
+  }
+
+  function showGestureHud(hudEl) {
+    clearTimeout(hudIndicatorTimer);
+    volumeHud.classList.add('hidden');
+    brightnessHud.classList.add('hidden');
+    hudEl.classList.remove('hidden');
+    hudIndicatorTimer = setTimeout(() => {
+      hudEl.classList.add('hidden');
+    }, 1200);
+  }
+
+  // ==========================================
+  // HUD VISIBILITY & AUTO-HIDE
+  // ==========================================
+  function showHud() {
+    clearTimeout(hudHideTimer);
+    playerHud.classList.remove('hud-hidden');
+    if (!videoPlayer.paused) {
+      hudHideTimer = setTimeout(() => {
+        playerHud.classList.add('hud-hidden');
+      }, 3500);
     }
   }
 
-  // Playback Speed Controller ([ Slower, ] Faster, = Normal)
-  function applyPlaybackSpeed(rate) {
-    currentPlaybackRate = Math.max(0.25, Math.min(4.0, Math.round(rate * 100) / 100));
-    videoPlayer.playbackRate = currentPlaybackRate;
-    speedValue.textContent = `${currentPlaybackRate.toFixed(2)}x`;
+  function toggleHud() {
+    if (playerHud.classList.contains('hud-hidden')) {
+      showHud();
+    } else {
+      playerHud.classList.add('hud-hidden');
+    }
   }
 
-  btnSpeedUp.addEventListener('click', () => applyPlaybackSpeed(currentPlaybackRate + 0.1));
-  btnSpeedDown.addEventListener('click', () => applyPlaybackSpeed(currentPlaybackRate - 0.1));
-  menuFaster.addEventListener('click', () => applyPlaybackSpeed(currentPlaybackRate + 0.1));
-  menuSlower.addEventListener('click', () => applyPlaybackSpeed(currentPlaybackRate - 0.1));
-  menuNormal.addEventListener('click', () => applyPlaybackSpeed(1.0));
+  playerHud.addEventListener('click', (e) => {
+    // Keep HUD visible on interaction
+    showHud();
+  });
 
-  document.querySelectorAll('.speed-opt').forEach(opt => {
-    opt.addEventListener('click', () => {
-      const spd = parseFloat(opt.getAttribute('data-speed'));
-      if (spd) applyPlaybackSpeed(spd);
+  // Loader & OSD
+  function showPlayerLoader(msg) {
+    playerLoaderMsg.textContent = msg || 'Loading...';
+    playerLoader.classList.remove('hidden');
+  }
+
+  function hidePlayerLoader() {
+    playerLoader.classList.add('hidden');
+  }
+
+  function showOsd(msg) {
+    clearTimeout(osdTimer);
+    vlcOsd.textContent = msg;
+    vlcOsd.classList.remove('hidden');
+    osdTimer = setTimeout(() => {
+      vlcOsd.classList.add('hidden');
+    }, 2200);
+  }
+
+  // ==========================================
+  // MATERIAL 3 MODAL BOTTOM SHEETS
+  // ==========================================
+  function openSheet(sheetEl) {
+    triggerHaptic();
+    closeActiveSheet();
+    sheetBackdrop.classList.remove('hidden');
+    sheetEl.classList.remove('hidden');
+    activeSheet = sheetEl;
+  }
+
+  function closeActiveSheet() {
+    if (activeSheet) {
+      activeSheet.classList.add('hidden');
+      activeSheet = null;
+    }
+    sheetBackdrop.classList.add('hidden');
+  }
+
+  sheetBackdrop.addEventListener('click', closeActiveSheet);
+  document.querySelectorAll('.sheet-close-btn').forEach(btn => {
+    btn.addEventListener('click', closeActiveSheet);
+  });
+
+  // 1. Audio Track Sheet
+  btnAudioSheet.addEventListener('click', () => {
+    openSheet(audioSheet);
+  });
+
+  function setupHlsAudioAndSubs(manifest) {
+    // Audio Tracks
+    audioTracksList.innerHTML = '';
+    const defItem = document.createElement('div');
+    defItem.className = `sheet-list-item ${currentAudioTrack === -1 ? 'active' : ''}`;
+    defItem.innerHTML = `<span class="sheet-item-label">Default Audio Track</span><span class="sheet-item-check">${currentAudioTrack === -1 ? '✓' : ''}</span>`;
+    defItem.addEventListener('click', () => {
+      if (hlsInstance) hlsInstance.audioTrack = -1;
+      currentAudioTrack = -1;
+      closeActiveSheet();
+      showOsd('Audio: Default');
+      triggerHaptic();
+    });
+    audioTracksList.appendChild(defItem);
+
+    if (hlsInstance && hlsInstance.audioTracks && hlsInstance.audioTracks.length > 0) {
+      hlsInstance.audioTracks.forEach((track, idx) => {
+        const item = document.createElement('div');
+        item.className = `sheet-list-item ${currentAudioTrack === idx ? 'active' : ''}`;
+        const name = track.name || track.lang || `Track ${idx + 1}`;
+        item.innerHTML = `<span class="sheet-item-label">${name}</span><span class="sheet-item-check">${currentAudioTrack === idx ? '✓' : ''}</span>`;
+        item.addEventListener('click', () => {
+          hlsInstance.audioTrack = idx;
+          currentAudioTrack = idx;
+          closeActiveSheet();
+          showOsd(`Audio: ${name}`);
+          triggerHaptic();
+        });
+        audioTracksList.appendChild(item);
+      });
+    }
+
+    // Subtitle Tracks
+    subtitleTracksList.innerHTML = '';
+    const offItem = document.createElement('div');
+    offItem.className = `sheet-list-item ${currentSubTrack === -1 ? 'active' : ''}`;
+    offItem.innerHTML = `<span class="sheet-item-label">Subtitles Off</span><span class="sheet-item-check">${currentSubTrack === -1 ? '✓' : ''}</span>`;
+    offItem.addEventListener('click', () => {
+      if (hlsInstance) hlsInstance.subtitleTrack = -1;
+      currentSubTrack = -1;
+      vlcSubtitleOverlay.textContent = '';
+      vlcSubtitleOverlay.classList.add('hidden');
+      closeActiveSheet();
+      showOsd('Subtitles Off');
+      triggerHaptic();
+    });
+    subtitleTracksList.appendChild(offItem);
+
+    if (hlsInstance && hlsInstance.subtitleTracks && hlsInstance.subtitleTracks.length > 0) {
+      hlsInstance.subtitleTracks.forEach((track, idx) => {
+        const item = document.createElement('div');
+        item.className = `sheet-list-item ${currentSubTrack === idx ? 'active' : ''}`;
+        const name = track.name || track.lang || `Subtitle ${idx + 1}`;
+        item.innerHTML = `<span class="sheet-item-label">${name}</span><span class="sheet-item-check">${currentSubTrack === idx ? '✓' : ''}</span>`;
+        item.addEventListener('click', () => {
+          hlsInstance.subtitleTrack = idx;
+          currentSubTrack = idx;
+          closeActiveSheet();
+          showOsd(`Subtitle: ${name}`);
+          triggerHaptic();
+        });
+        subtitleTracksList.appendChild(item);
+      });
+    }
+  }
+
+  // 2. Subtitle Sheet
+  btnSubSheet.addEventListener('click', () => {
+    openSheet(subtitleSheet);
+  });
+
+  btnLoadCustomSub.addEventListener('click', () => {
+    triggerHaptic();
+    subFileInput.click();
+  });
+
+  subFileInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      parseCustomSubtitles(evt.target.result);
+      customSubLabel.textContent = file.name;
+      closeActiveSheet();
+      showOsd(`Loaded Subtitle: ${file.name}`);
+      triggerHaptic();
+    };
+    reader.readAsText(file);
+  });
+
+  function parseCustomSubtitles(text) {
+    customSubtitles = [];
+    const blocks = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split(/\n\n+/);
+    blocks.forEach(block => {
+      const lines = block.trim().split('\n');
+      if (lines.length >= 2) {
+        let timeLine = lines[0].includes('-->') ? lines[0] : (lines[1].includes('-->') ? lines[1] : null);
+        let textLines = lines.slice(lines.indexOf(timeLine) + 1);
+        if (timeLine) {
+          const parts = timeLine.split('-->');
+          const start = parseTimestamp(parts[0].trim());
+          const end = parseTimestamp(parts[1].trim());
+          if (start !== null && end !== null) {
+            customSubtitles.push({ start, end, text: textLines.join('\n') });
+          }
+        }
+      }
+    });
+  }
+
+  function parseTimestamp(str) {
+    const match = /(?:(\d+):)?(\d+):(\d+)(?:[.,](\d+))?/.exec(str);
+    if (!match) return null;
+    const hours = parseInt(match[1] || '0', 10);
+    const mins = parseInt(match[2], 10);
+    const secs = parseInt(match[3], 10);
+    const ms = parseInt(match[4] || '0', 10);
+    return hours * 3600 + mins * 60 + secs + ms / 1000;
+  }
+
+  function renderCustomSubtitles(currentTime) {
+    if (customSubtitles.length === 0) return;
+    const adjustedTime = currentTime + (subtitleDelayMs / 1000);
+    const active = customSubtitles.find(s => adjustedTime >= s.start && adjustedTime <= s.end);
+    if (active) {
+      vlcSubtitleOverlay.textContent = active.text;
+      vlcSubtitleOverlay.classList.remove('hidden');
+    } else {
+      vlcSubtitleOverlay.textContent = '';
+      vlcSubtitleOverlay.classList.add('hidden');
+    }
+  }
+
+  btnSubDelayMinus.addEventListener('click', () => {
+    subtitleDelayMs -= 50;
+    subDelayDisplay.textContent = `${subtitleDelayMs} ms`;
+    triggerHaptic();
+  });
+
+  btnSubDelayPlus.addEventListener('click', () => {
+    subtitleDelayMs += 50;
+    subDelayDisplay.textContent = `${subtitleDelayMs} ms`;
+    triggerHaptic();
+  });
+
+  btnSubDelayReset.addEventListener('click', () => {
+    subtitleDelayMs = 0;
+    subDelayDisplay.textContent = '0 ms';
+    triggerHaptic();
+  });
+
+  subSizeSelect.addEventListener('change', () => {
+    vlcSubtitleOverlay.style.fontSize = subSizeSelect.value;
+  });
+
+  subColorSelect.addEventListener('change', () => {
+    vlcSubtitleOverlay.style.color = subColorSelect.value;
+  });
+
+  // 3. Playback Speed Sheet
+  btnSpeedSheet.addEventListener('click', () => {
+    openSheet(speedSheet);
+  });
+
+  speedChips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      triggerHaptic();
+      const speed = parseFloat(chip.dataset.speed);
+      currentPlaybackRate = speed;
+      videoPlayer.playbackRate = speed;
+      hudSpeedLabel.textContent = `${speed}x`;
+      speedChips.forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      closeActiveSheet();
+      showOsd(`Speed: ${speed}x`);
     });
   });
 
-  // =========================================================================
-  // VLC Fullscreen Mode with 5-Second Footer / Cursor Auto-Hide
-  // =========================================================================
-  function toggleFullscreen() {
-    if (!document.fullscreenElement) {
-      if (vlcWindow.requestFullscreen) {
-        vlcWindow.requestFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
+  // 4. Settings Sheet
+  btnOpenSettings.addEventListener('click', () => {
+    openSheet(settingsSheet);
+    if (localServerInput) {
+      localServerInput.value = localStorage.getItem('pvp_local_server_url') || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : window.location.origin);
     }
+  });
+
+  btnSaveServer.addEventListener('click', () => {
+    triggerHaptic();
+    const val = (localServerInput.value || '').trim().replace(/\/+$/, '');
+    if (val) {
+      localStorage.setItem('pvp_local_server_url', val);
+      API_BASE = val;
+    } else {
+      localStorage.removeItem('pvp_local_server_url');
+      API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+    }
+    closeActiveSheet();
+    showOsd('Server settings saved');
+  });
+
+  btnResetServer.addEventListener('click', () => {
+    triggerHaptic();
+    localStorage.removeItem('pvp_local_server_url');
+    API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
+    localServerInput.value = 'http://127.0.0.1:8000';
+    showOsd('Reset to default server');
+  });
+
+  // ==========================================
+  // PLAYBACK HISTORY MANAGEMENT
+  // ==========================================
+  function saveToHistory(url, title) {
+    try {
+      let history = JSON.parse(localStorage.getItem('pvp_mobile_history') || '[]');
+      // Remove duplicate if exists
+      history = history.filter(item => item.url !== url);
+      // Prepend to top
+      history.unshift({
+        url: url,
+        title: title || 'Streamed Video',
+        timestamp: Date.now()
+      });
+      // Cap at 15 items
+      if (history.length > 15) history = history.slice(0, 15);
+      localStorage.setItem('pvp_mobile_history', JSON.stringify(history));
+    } catch (_) {}
   }
 
-  btnFullscreen.addEventListener('click', toggleFullscreen);
-  menuFullscreen.addEventListener('click', toggleFullscreen);
-  videoPlayer.addEventListener('dblclick', toggleFullscreen);
-
-  function resetFullscreenInactivityTimer() {
-    if (!document.fullscreenElement) {
-      vlcWindow.classList.remove('fullscreen-mode', 'controls-hidden', 'hide-cursor');
-      clearTimeout(fullscreenHideTimer);
-      return;
-    }
-
-    // In fullscreen: reveal controls and cursor immediately upon mouse movement
-    vlcWindow.classList.add('fullscreen-mode');
-    vlcWindow.classList.remove('controls-hidden', 'hide-cursor');
-
-    clearTimeout(fullscreenHideTimer);
-    // Hide controls and cursor after 5 seconds of inactivity
-    fullscreenHideTimer = setTimeout(() => {
-      if (document.fullscreenElement && !videoPlayer.paused) {
-        vlcWindow.classList.add('controls-hidden', 'hide-cursor');
+  function renderHistory() {
+    try {
+      const history = JSON.parse(localStorage.getItem('pvp_mobile_history') || '[]');
+      if (!history || history.length === 0) {
+        historyList.innerHTML = `
+          <div class="history-empty">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5">
+              <circle cx="12" cy="12" r="10"></circle>
+              <polyline points="12 6 12 12 16 14"></polyline>
+            </svg>
+            <p>No recent streams yet</p>
+            <span>Played videos will appear here for fast re-streaming</span>
+          </div>`;
+        btnClearHistory.classList.add('hidden');
+        return;
       }
-    }, 5000);
+
+      btnClearHistory.classList.remove('hidden');
+      historyList.innerHTML = '';
+      history.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'history-item';
+        row.innerHTML = `
+          <div class="history-icon-box">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </div>
+          <div class="history-details">
+            <span class="history-title">${escapeHtml(item.title)}</span>
+            <span class="history-meta">${formatRelativeTime(item.timestamp)}</span>
+          </div>
+          <div class="history-play-btn">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </div>`;
+        row.addEventListener('click', () => {
+          triggerHaptic();
+          urlInput.value = item.url;
+          btnClearInput.classList.remove('hidden');
+          handleStreamSubmit();
+        });
+        historyList.appendChild(row);
+      });
+    } catch (_) {}
   }
 
-  document.addEventListener('fullscreenchange', () => {
-    if (document.fullscreenElement) {
-      vlcWindow.classList.add('fullscreen-mode');
-      resetFullscreenInactivityTimer();
-    } else {
-      vlcWindow.classList.remove('fullscreen-mode', 'controls-hidden', 'hide-cursor');
-      clearTimeout(fullscreenHideTimer);
-    }
+  btnClearHistory.addEventListener('click', () => {
+    triggerHaptic();
+    localStorage.removeItem('pvp_mobile_history');
+    renderHistory();
   });
 
-  // Mouse move listener for fullscreen controls reveal
-  vlcWindow.addEventListener('mousemove', () => {
-    if (document.fullscreenElement) {
-      resetFullscreenInactivityTimer();
-    }
-  });
-
-  // Keyboard Shortcuts (Authentic VLC Media Player)
-  window.addEventListener('keydown', (e) => {
-    if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
-      if (e.key === 'Escape') {
-        closeStreamModal();
-      }
-      return;
-    }
-
-    const ctrl = e.ctrlKey || e.metaKey;
-
-    // Ctrl + N: Open Network Stream Modal
-    if (ctrl && e.key.toLowerCase() === 'n') {
-      e.preventDefault();
-      openStreamModal();
-      return;
-    }
-
-    // Ctrl + L: Toggle Playlist
-    if (ctrl && e.key.toLowerCase() === 'l') {
-      e.preventDefault();
-      togglePlaylist();
-      return;
-    }
-
-    // Ctrl + Up / Down: Volume +/- 5%
-    if (ctrl && e.key === 'ArrowUp') {
-      e.preventDefault();
-      volumeSlider.value = Math.min(125, parseInt(volumeSlider.value, 10) + 5);
-      volumeSlider.dispatchEvent(new Event('input'));
-      return;
-    }
-    if (ctrl && e.key === 'ArrowDown') {
-      e.preventDefault();
-      volumeSlider.value = Math.max(0, parseInt(volumeSlider.value, 10) - 5);
-      volumeSlider.dispatchEvent(new Event('input'));
-      return;
-    }
-
-    // Ctrl + Left / Right: 1 minute jump
-    if (ctrl && e.key === 'ArrowRight') {
-      e.preventDefault();
-      const cur = videoPlayer.currentTime + currentStreamSeekOffset;
-      seekToTime(cur + 60);
-      return;
-    }
-    if (ctrl && e.key === 'ArrowLeft') {
-      e.preventDefault();
-      const cur = videoPlayer.currentTime + currentStreamSeekOffset;
-      seekToTime(Math.max(0, cur - 60));
-      return;
-    }
-
-    // Standard VLC keys
-    switch (e.key) {
-      case ' ':
-        e.preventDefault();
-        togglePlayPause();
-        break;
-      case 's':
-      case 'S':
-        e.preventDefault();
-        stopPlayback();
-        break;
-      case 'f':
-      case 'F':
-        e.preventDefault();
-        toggleFullscreen();
-        break;
-      case 'm':
-      case 'M':
-        e.preventDefault();
-        toggleMute();
-        break;
-      case 'n':
-      case 'N':
-        e.preventDefault();
-        playNextTrack();
-        break;
-      case 'p':
-      case 'P':
-        e.preventDefault();
-        playPrevTrack();
-        break;
-      case '[':
-        e.preventDefault();
-        applyPlaybackSpeed(currentPlaybackRate - 0.1);
-        break;
-      case ']':
-        e.preventDefault();
-        applyPlaybackSpeed(currentPlaybackRate + 0.1);
-        break;
-      case '=':
-        e.preventDefault();
-        applyPlaybackSpeed(1.0);
-        break;
-      case 'b':
-      case 'B':
-        e.preventDefault();
-        cycleAudioTrack();
-        break;
-      case 'v':
-      case 'V':
-        e.preventDefault();
-        cycleSubtitleTrack();
-        break;
-      case 'g':
-      case 'G':
-        e.preventDefault();
-        adjustSubtitleDelay(-50);
-        break;
-      case 'h':
-      case 'H':
-        e.preventDefault();
-        adjustSubtitleDelay(50);
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        {
-          const cur = videoPlayer.currentTime + currentStreamSeekOffset;
-          seekToTime(cur + 10);
-        }
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        {
-          const cur = videoPlayer.currentTime + currentStreamSeekOffset;
-          seekToTime(Math.max(0, cur - 10));
-        }
-        break;
-      case 'Escape':
-        closeStreamModal();
-        if (document.fullscreenElement) {
-          document.exitFullscreen();
-        }
-        break;
-    }
-  });
-
-  // Helpers
+  // ==========================================
+  // UTILITIES & GLOBAL WINDOW EXPORTS
+  // ==========================================
   function formatTime(seconds) {
-    if (!seconds || isNaN(seconds) || seconds < 0) return '00:00:00';
+    if (!seconds || isNaN(seconds) || seconds < 0) return '00:00';
     const s = Math.floor(seconds);
     const hrs = Math.floor(s / 3600);
     const mins = Math.floor((s % 3600) / 60);
     const secs = s % 60;
-    const h = hrs.toString().padStart(2, '0');
-    const m = mins.toString().padStart(2, '0');
-    const sc = secs.toString().padStart(2, '0');
-    return `${h}:${m}:${sc}`;
-  }
-
-  function showVideoLoader(msg) {
-    loaderMsg.textContent = msg || 'Loading ad-free video...';
-    videoLoader.classList.remove('hidden');
-  }
-
-  function hideVideoLoader() {
-    videoLoader.classList.add('hidden');
-  }
-
-  function setModalLoading(isLoading) {
-    if (isLoading) {
-      btnModalStream.disabled = true;
-      modalSpinner.classList.remove('hidden');
-      modalBtnText.textContent = '';
-    } else {
-      btnModalStream.disabled = false;
-      modalSpinner.classList.add('hidden');
-      modalBtnText.textContent = 'Stream';
+    const pad = (n) => String(n).padStart(2, '0');
+    if (hrs > 0) {
+      return `${hrs}:${pad(mins)}:${pad(secs)}`;
     }
+    return `${pad(mins)}:${pad(secs)}`;
   }
 
-  function showModalError(msg) {
-    modalError.textContent = msg;
-    modalError.classList.remove('hidden');
+  function formatRelativeTime(ts) {
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
   }
 
-  menuAbout.addEventListener('click', () => {
-    alert('PVP (Personal Video Player)\nUniversal 100% Local Ad-Free Media Player\nAuthentic VLC Media Player interface with zero cloud dependencies.');
-  });
-
-  // Local Server & Network Settings Modal (Tools -> Local Server Settings)
-  const menuServerSettings = document.getElementById('menuServerSettings');
-  const serverModal = document.getElementById('serverModal');
-  const btnServerModalClose = document.getElementById('btnServerModalClose');
-  const localServerInput = document.getElementById('localServerInput');
-  const serverStatusBadge = document.getElementById('serverStatusBadge');
-  const btnServerReset = document.getElementById('btnServerReset');
-  const btnServerSave = document.getElementById('btnServerSave');
-
-  if (menuServerSettings && serverModal) {
-    async function checkServerStatus(url) {
-      if (!serverStatusBadge) return;
-      serverStatusBadge.textContent = 'Checking server status...';
-      serverStatusBadge.style.color = '#ff9900';
-      serverStatusBadge.style.background = 'rgba(255,136,0,0.15)';
-      serverStatusBadge.style.borderColor = 'rgba(255,136,0,0.3)';
-      try {
-        const pingUrl = (url ? url.replace(/\/+$/, '') : 'http://127.0.0.1:8000') + '/api/history';
-        const timeoutController = new AbortController();
-        const tid = setTimeout(() => timeoutController.abort(), 2500);
-        const res = await fetch(pingUrl, { signal: timeoutController.signal });
-        clearTimeout(tid);
-        if (res.ok) {
-          serverStatusBadge.textContent = '● Connected: Local PVP Server is active (' + pingUrl.replace('/api/history', '') + ')';
-          serverStatusBadge.style.color = '#3ddc84';
-          serverStatusBadge.style.background = 'rgba(61,220,132,0.15)';
-          serverStatusBadge.style.borderColor = 'rgba(61,220,132,0.3)';
-          return;
-        }
-      } catch (_) {}
-      serverStatusBadge.textContent = '○ Standalone Mode: Direct native streams & embeds active';
-      serverStatusBadge.style.color = '#ffaa00';
-      serverStatusBadge.style.background = 'rgba(255,170,0,0.15)';
-      serverStatusBadge.style.borderColor = 'rgba(255,170,0,0.3)';
-    }
-
-    menuServerSettings.addEventListener('click', () => {
-      closeAllMenus();
-      const current = localStorage.getItem('pvp_local_server_url') || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : window.location.origin);
-      if (localServerInput) localServerInput.value = current;
-      serverModal.classList.remove('hidden');
-      checkServerStatus(current);
-    });
-
-    btnServerModalClose?.addEventListener('click', () => {
-      serverModal.classList.add('hidden');
-    });
-
-    btnServerReset?.addEventListener('click', () => {
-      localStorage.removeItem('pvp_local_server_url');
-      const def = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
-      if (localServerInput) localServerInput.value = 'http://127.0.0.1:8000';
-      API_BASE = def;
-      checkServerStatus(API_BASE);
-    });
-
-    btnServerSave?.addEventListener('click', () => {
-      const val = (localServerInput?.value || '').trim().replace(/\/+$/, '');
-      if (val) {
-        localStorage.setItem('pvp_local_server_url', val);
-        API_BASE = val;
-      } else {
-        localStorage.removeItem('pvp_local_server_url');
-        API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '';
-      }
-      serverModal.classList.add('hidden');
-    });
+  function escapeHtml(str) {
+    return (str || '').replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[m]);
   }
 
-  // Global API for native Android bridge & Intent sharing
+  // Global window functions for native Android Intent share and deep links
   window.playVideoUrl = function(url) {
     if (!url) return;
-    const cleanUrl = url.trim();
-    if (urlModalInput) {
-      urlModalInput.value = cleanUrl;
-    }
+    urlInput.value = url.trim();
+    btnClearInput.classList.remove('hidden');
     handleStreamSubmit();
   };
 
   window.handleStreamSubmit = function(url) {
-    if (url && urlModalInput) {
-      urlModalInput.value = url.trim();
+    if (url) {
+      urlInput.value = url.trim();
+      btnClearInput.classList.remove('hidden');
     }
     handleStreamSubmit();
   };
 
-  // Touch Gestures for Mobile (Double-Tap Seeking)
-  const touchSeekLeft = document.getElementById('touchSeekLeft');
-  const touchSeekRight = document.getElementById('touchSeekRight');
-  const rippleLeft = document.getElementById('rippleLeft');
-  const rippleRight = document.getElementById('rippleRight');
-  const btnMobileMenu = document.getElementById('btnMobileMenu');
+  // Initial load
+  renderHistory();
+  setTimeout(checkClipboardForVideo, 600);
 
-  let lastTapLeft = 0;
-  let lastTapRight = 0;
-
-  if (touchSeekLeft && rippleLeft) {
-    touchSeekLeft.addEventListener('click', () => {
-      const now = Date.now();
-      if (now - lastTapLeft < 350) {
-        seekRelative(-10);
-        rippleLeft.classList.add('active');
-        setTimeout(() => rippleLeft.classList.remove('active'), 400);
-      }
-      lastTapLeft = now;
-    });
+  // Check URL query parameters (e.g. ?url=...)
+  const urlParams = new URLSearchParams(window.location.search);
+  const autoUrl = urlParams.get('url');
+  if (autoUrl) {
+    window.playVideoUrl(autoUrl);
   }
 
-  if (touchSeekRight && rippleRight) {
-    touchSeekRight.addEventListener('click', () => {
-      const now = Date.now();
-      if (now - lastTapRight < 350) {
-        seekRelative(10);
-        rippleRight.classList.add('active');
-        setTimeout(() => rippleRight.classList.remove('active'), 400);
-      }
-      lastTapRight = now;
-    });
-  }
-
-  if (btnMobileMenu) {
-    btnMobileMenu.addEventListener('click', () => {
-      if (serverModal) {
-        serverModal.classList.remove('hidden');
-      } else {
-        openStreamModal();
-      }
-    });
-  }
-
-  // Notify native Android that app is ready for pending shared URLs
+  // Notify native Android that web app is fully ready
   if (typeof window.PVPNative !== 'undefined' && typeof window.PVPNative.onAppReady === 'function') {
     try {
       window.PVPNative.onAppReady();

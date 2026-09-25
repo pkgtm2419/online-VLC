@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base theme - dark VLC style -->
+    <!-- Base theme - dark modern VLC style for Android 12+ -->
     <style name="Theme.PVP" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/pvp_orange</item>
         <item name="colorPrimaryVariant">@color/pvp_dark</item>
         <item name="colorOnPrimary">@color/pvp_text</item>
         <item name="colorSecondary">@color/pvp_orange</item>
         <item name="android:windowBackground">@color/pvp_black</item>
-        <item name="android:statusBarColor">@color/pvp_black</item>
-        <item name="android:navigationBarColor">@color/pvp_black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="28">shortEdges</item>
     </style>
 
     <!-- Fullscreen variant -->
