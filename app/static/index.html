@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Online VLC - Ad-Free Video Player</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.8/dist/hls.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        <span>Online VLC</span>
+      </div>
+    </header>
+
+    <!-- URL Input -->
+    <div class="input-container">
+      <div class="input-box">
+        <input 
+          type="url" 
+          id="urlInput" 
+          placeholder="Paste video URL here (YouTube, Vimeo, Twitter, Drive, direct .mp4, etc.)..."
+          autocomplete="off"
+          spellcheck="false"
+        >
+        <button id="btnPaste" class="btn-secondary" title="Paste link from clipboard">Paste</button>
+        <button id="btnPlay" class="btn-primary">
+          <span id="btnText">Play</span>
+          <div id="btnSpinner" class="spinner hidden"></div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Error Alert -->
+    <div id="errorAlert" class="error-alert hidden">
+      <span id="errorMessage">Error extracting video stream.</span>
+      <button id="btnDismissError">&times;</button>
+    </div>
+
+    <!-- Main Video Section -->
+    <div class="player-wrapper">
+      <div class="video-container" id="videoContainer">
+        <!-- Placeholder before any video is loaded -->
+        <div id="placeholder" class="placeholder">
+          <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <p>Paste a video link above to play directly without ads</p>
+        </div>
+
+        <!-- Video Element -->
+        <video 
+          id="videoPlayer" 
+          class="hidden"
+          controls 
+          autoplay
+          playsinline 
+          crossorigin="anonymous"
+          preload="auto"
+        ></video>
+
+        <!-- Loader -->
+        <div id="videoLoader" class="loader-overlay hidden">
+          <div class="spinner-large"></div>
+          <span id="loaderText">Loading ad-free video...</span>
+        </div>
+
+        <!-- Unmute prompt banner (if browser forced muted autoplay) -->
+        <div id="unmutePrompt" class="unmute-banner hidden">
+          <span>🔊 Video is playing muted due to browser policy. Click anywhere or press M to unmute.</span>
+          <button id="btnUnmute">Unmute</button>
+        </div>
+      </div>
+
+      <!-- Controls & Title Bar -->
+      <div id="videoMeta" class="video-meta hidden">
+        <h1 id="videoTitle" class="video-title">Video Title</h1>
+        
+        <div class="video-controls-bar">
+          <!-- Playback Speed Control -->
+          <div class="control-item">
+            <label for="speedSelect">Speed:</label>
+            <select id="speedSelect" class="styled-select">
+              <option value="0.5">0.5x</option>
+              <option value="0.75">0.75x</option>
+              <option value="1" selected>1.0x (Normal)</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2.0x</option>
+            </select>
+          </div>
+
+          <!-- Quality Selector -->
+          <div class="control-item">
+            <label for="qualitySelect">Quality:</label>
+            <select id="qualitySelect" class="styled-select"></select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
