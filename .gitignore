@@ -37,3 +37,7 @@ mobile/android/app/src/main/python/data/
 mobile/android/local.properties
 *.apk
 *.aab
+
+# Track releases folder
+!releases/
+!releases/**
