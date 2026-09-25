@@ -518,20 +518,8 @@ def extract_video_info(url: str, force_single: bool = False) -> Dict[str, Any]:
         yt_match = re.search(r'(?:youtu\.be/|youtube\.com/(?:watch\?v=|embed/|v/|shorts/))([a-zA-Z0-9_-]{11})', cleaned_url)
         if yt_match:
             yt_id = yt_match.group(1)
-            yt_title = "YouTube Video"
+            yt_title = f"YouTube Video ({yt_id})"
             yt_thumb = f"https://i.ytimg.com/vi/{yt_id}/hqdefault.jpg"
-            try:
-                import urllib.request, json
-                req = urllib.request.Request(
-                    f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={yt_id}&format=json",
-                    headers={"User-Agent": "Mozilla/5.0"}
-                )
-                with urllib.request.urlopen(req, timeout=3) as resp:
-                    oembed_data = json.loads(resp.read().decode('utf-8'))
-                    yt_title = oembed_data.get('title') or yt_title
-                    yt_thumb = oembed_data.get('thumbnail_url') or yt_thumb
-            except Exception:
-                pass
 
             return {
                 "success": True,

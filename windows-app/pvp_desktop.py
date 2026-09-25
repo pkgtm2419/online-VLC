@@ -19,12 +19,31 @@ sys.path.insert(0, base_dir)
 
 try:
     from app.main import app as fastapi_app
+    from app.streamer import get_ffmpeg_path
     import uvicorn
 except Exception as e:
     root = tk.Tk()
     root.withdraw()
     messagebox.showerror("Error", f"Failed to import app: {e}")
     sys.exit(1)
+
+def check_ffmpeg():
+    """Check FFmpeg availability and notify user if optional muxing engine is absent."""
+    if not get_ffmpeg_path():
+        try:
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showinfo(
+                "PVP Player - Optional FFmpeg Notice",
+                "FFmpeg was not detected in your system PATH.\n\n"
+                "• Direct streams (MP4, WebM, HLS .m3u8) will work normally.\n"
+                "• For separate video+audio 1080p stream muxing, you can install FFmpeg anytime:\n"
+                "  winget install Gyan.FFmpeg\n\n"
+                "Click OK to start PVP Player."
+            )
+            root.destroy()
+        except Exception:
+            pass
 
 def find_free_port(start_port=8000):
     port = start_port
@@ -89,6 +108,7 @@ def on_quit(icon, item):
 def main():
     global current_port
     try:
+        check_ffmpeg()
         current_port = find_free_port(8000)
         start_server_thread(current_port)
         

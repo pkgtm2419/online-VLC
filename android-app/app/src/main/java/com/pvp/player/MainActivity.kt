@@ -160,6 +160,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
+    @Suppress("DEPRECATION")
     private fun setupWebView() {
         webView.settings.apply {
             javaScriptEnabled = true
@@ -174,7 +175,6 @@ class MainActivity : AppCompatActivity() {
             setSupportMultipleWindows(false)
             useWideViewPort = true
             loadWithOverviewMode = true
-            databaseEnabled = true
         }
 
         webView.webViewClient = object : WebViewClient() {
@@ -224,6 +224,7 @@ class MainActivity : AppCompatActivity() {
         webView.addJavascriptInterface(PVPBridge(this), "PVPNative")
     }
 
+    @Suppress("DEPRECATION")
     override fun onBackPressed() {
         if (webView.canGoBack()) {
             webView.goBack()

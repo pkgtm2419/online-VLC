@@ -5,13 +5,42 @@ and on-the-fly zero-reencode FFmpeg muxing for paired video + audio streams.
 """
 
 import os
+import sys
+import shutil
 import subprocess
 import urllib.parse
 import ipaddress
-from typing import AsyncGenerator
+from pathlib import Path
+from typing import Optional, AsyncGenerator
 import httpx
 from fastapi import Request, Response, HTTPException
 from fastapi.responses import StreamingResponse
+
+def get_ffmpeg_path() -> Optional[str]:
+    """
+    Locates FFmpeg executable in system PATH, local directory, or PyInstaller bundle.
+    """
+    # 1. System PATH
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    
+    # 2. Local app directory or current working directory
+    candidates = [
+        Path.cwd() / "ffmpeg.exe",
+        Path.cwd() / "ffmpeg",
+        Path(__file__).parent / "ffmpeg.exe",
+        Path(__file__).parent.parent / "ffmpeg.exe"
+    ]
+    if getattr(sys, 'frozen', False):
+        candidates.append(Path(sys.executable).parent / "ffmpeg.exe")
+        candidates.append(Path(getattr(sys, '_MEIPASS', '')) / "ffmpeg.exe")
+    
+    for c in candidates:
+        if c.exists() and c.is_file():
+            return str(c)
+    
+    return None
 
 DEFAULT_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
 
@@ -138,8 +167,17 @@ def stream_muxed_video(video_url: str, audio_url: str, start: float = 0.0) -> St
     audio_url = validate_stream_url(audio_url)
     seek_str = str(max(0.0, start))
     
+    ffmpeg_bin = get_ffmpeg_path()
+    if not ffmpeg_bin:
+        raise HTTPException(
+            status_code=503,
+            detail="FFmpeg is not installed or not found in system PATH. "
+                   "To enable separate video+audio muxing, please install FFmpeg (e.g., 'winget install Gyan.FFmpeg' or place ffmpeg.exe in the app directory), "
+                   "or select a direct single-stream quality option."
+        )
+
     cmd = [
-        'ffmpeg',
+        ffmpeg_bin,
         '-hide_banner',
         '-loglevel', 'error',
     ]
@@ -178,12 +216,20 @@ def stream_muxed_video(video_url: str, audio_url: str, start: float = 0.0) -> St
         'pipe:1'
     ])
 
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        bufsize=1024 * 1024
-    )
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=1024 * 1024
+        )
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=503,
+            detail="FFmpeg binary could not be executed. Please ensure FFmpeg is installed and accessible."
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start FFmpeg muxing process: {e}")
 
     def iter_ffmpeg_bytes():
         try:
