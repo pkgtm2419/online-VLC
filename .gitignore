@@ -22,22 +22,21 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Desktop build artifacts
-desktop/build/
-desktop/dist/
-desktop/*.exe
+# Windows Desktop build artifacts
+windows-app/build/
+windows-app/dist/
+windows-app/*.exe
+desktop/
 
-# Mobile build artifacts
-mobile/android/.gradle/
-mobile/android/build/
-mobile/android/app/build/
-mobile/android/app/src/main/assets/www/
-mobile/android/app/src/main/python/app/
-mobile/android/app/src/main/python/data/
-mobile/android/local.properties
-*.apk
-*.aab
+# Android build artifacts
+android-app/.gradle/
+android-app/.kotlin/
+android-app/local.properties
+android-app/build/
+android-app/**/build/
+android-app/PVP-Player.apk
+mobile/
 
-# Track releases folder
+# Releases folder (must be tracked)
 !releases/
 !releases/**

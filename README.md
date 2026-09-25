@@ -1,10 +1,10 @@
-# 🎬 PVP (Personal Video Player) — Offline & Local VLC
+# 🎬 PVP (Personal Video Player) — Three Independent Platforms
 
 [![GitHub Repository](https://img.shields.io/badge/GitHub-pkgtm2419%2Fonline--VLC-blue?style=for-the-badge&logo=github)](https://github.com/pkgtm2419/online-VLC)
 [![100% Local Execution](https://img.shields.io/badge/Privacy-100%25%20Local%20%26%20Offline-success?style=for-the-badge&logo=shield)](https://github.com/pkgtm2419/online-VLC)
 [![Platforms](https://img.shields.io/badge/Platforms-Windows%20%7C%20Android%20%7C%20Chrome-orange?style=for-the-badge)](https://github.com/pkgtm2419/online-VLC)
 
-> **PVP (Personal Video Player)** is a universal, 100% ad-free media player designed with the authentic layout, controls, and keyboard shortcuts of **VLC Media Player**. All processing, stream extraction, and media rendering run **locally on your device** without any cloud servers or third-party tracking.
+> **PVP (Personal Video Player)** is a universal, 100% ad-free media player designed with the authentic layout, controls, and keyboard shortcuts of **VLC Media Player**. The repository is organized into **three completely independent, standalone projects** for **Windows**, **Android**, and **Google Chrome**, each bundling all its required dependencies to run locally without cloud servers or cross-project dependencies.
 
 ---
 
@@ -14,48 +14,113 @@ Choose your platform below to download the pre-built files directly from this re
 
 | Platform | Download Button | Package Type | Quick Instructions |
 | :--- | :--- | :--- | :--- |
-| 🪟 **Windows Desktop** | [![Download Windows EXE](https://img.shields.io/badge/Download-PVP--Player.exe-FF8800?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.exe) <br> *(or [Download as .ZIP](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player-Windows.zip))* | Standalone `.exe` (36 MB) | **Double-click `PVP-Player.exe` to run.** <br> Starts local player and opens in default browser with tray icon. No setup needed. |
-| 📱 **Android Mobile** | [![Download Android APK](https://img.shields.io/badge/Download-PVP--Player.apk-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.apk) <br> *(or [Source Project .ZIP](https://github.com/pkgtm2419/online-VLC/raw/main/releases/pvp-android-mobile.zip))* | Installable `.apk` (6 MB) | **Direct install on Android phone or tablet.** <br> Tap to install. Supports Share-to-Play, automatic clipboard detection, and full VLC controls. |
-| 🧩 **Chrome Extension** | [![Download Chrome Extension](https://img.shields.io/badge/Download-Chrome--Extension.zip-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/pvp-chrome-extension.zip) | Extension `.zip` (8 KB) | **1.** Unzip the downloaded file. <br> **2.** Go to `chrome://extensions` → toggle **Developer mode**. <br> **3.** Click **Load unpacked** and select folder. Adds "Open with PVP" to every web video! |
+| 🪟 **Windows Desktop** | [![Download Windows EXE](https://img.shields.io/badge/Download-PVP--Player.exe-FF8800?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.exe) <br> *(or [Download as .ZIP](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player-Windows.zip))* | Standalone `.exe` (36.8 MB) | **Double-click `PVP-Player.exe` to run.** <br> Starts local player and opens in default browser with tray icon. No setup needed. |
+| 📱 **Android Mobile** | [![Download Android APK](https://img.shields.io/badge/Download-PVP--Player.apk-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.apk) <br> *(or [Source Project .ZIP](https://github.com/pkgtm2419/online-VLC/raw/main/releases/pvp-android-mobile.zip))* | Installable `.apk` (6.18 MB) | **Direct install on Android phone or tablet.** <br> Tap to install. Supports Share-to-Play, automatic clipboard detection, and full VLC controls. |
+| 🧩 **Chrome Extension** | [![Download Chrome Extension](https://img.shields.io/badge/Download-Chrome--Extension.zip-4285F4?style=for-the-badge&logo=googlechrome&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/pvp-chrome-extension.zip) | Extension `.zip` (139 KB) | **1.** Unzip the downloaded file. <br> **2.** Go to `chrome://extensions` → toggle **Developer mode**. <br> **3.** Click **Load unpacked** and select folder. Adds "Open with PVP" to every web video! |
+
+---
+
+## 📁 Independent Repository Structure
+
+This repository contains **three separate project directories** with zero coupling between them:
+
+```
+online-VLC/
+├── releases/                       # Compiled, production-ready release downloads
+│   ├── PVP-Player.exe              # Standalone Windows executable (36.8 MB)
+│   ├── PVP-Player-Windows.zip      # Windows package archive (36.5 MB)
+│   ├── PVP-Player.apk              # Installable Android Mobile APK (6.18 MB)
+│   ├── pvp-android-mobile.zip      # Android project source archive (165 KB)
+│   └── pvp-chrome-extension.zip    # Self-contained Chrome extension (139 KB)
+│
+├── windows-app/                    # Standalone Windows Desktop App Project
+│   ├── app/                        # Bundled backend and VLC web player frontend
+│   │   ├── main.py                 # FastAPI local backend
+│   │   ├── extractor.py            # Universal stream extraction engine
+│   │   ├── streamer.py             # Local streaming proxy
+│   │   └── static/                 # VLC frontend (index.html, app.js, style.css, hls.min.js)
+│   ├── pvp_desktop.py              # System tray launcher (pystray + uvicorn)
+│   ├── build.py                    # PyInstaller standalone binary builder
+│   ├── pvp.spec                    # PyInstaller build specification
+│   ├── requirements.txt            # Standalone Python dependencies
+│   ├── run.bat                     # Instant one-click launcher
+│   └── README.md                   # Windows project guide
+│
+├── android-app/                    # Standalone Android Mobile Project
+│   ├── app/                        # Android application module
+│   │   ├── src/main/java/          # Kotlin native bridge & Share Intent handler
+│   │   ├── src/main/assets/www/    # Touch-optimized mobile VLC UI & player
+│   │   └── src/main/res/           # Native Android resources, drawables & icons
+│   ├── build.gradle.kts            # Project build configuration
+│   ├── settings.gradle.kts         # Gradle settings
+│   ├── gradle.properties           # Build properties
+│   └── README.md                   # Android build & setup guide
+│
+└── chrome-extension/               # Standalone Chrome Browser Extension
+    ├── manifest.json               # Manifest V3 specification
+    ├── popup.html/css/js           # Minimal ON/OFF toggle UI
+    ├── content.js/css              # Video overlay injector
+    ├── player/                     # Self-contained internal offline VLC player
+    │   ├── player.html             # Standalone playback tab
+    │   ├── player.js               # Autonomous player engine
+    │   ├── player.css              # Dark VLC-themed player style
+    │   └── hls.min.js              # Bundled HLS streaming engine
+    ├── icons/                      # Extension icons
+    └── README.md                   # Chrome extension guide
+```
 
 ---
 
 ## 🚀 Platform Setup Guides
 
-### 🪟 1. Windows Desktop Executable (`.exe`)
+### 🪟 1. Windows Desktop App (`windows-app/`)
 
-1. Click **[Download PVP-Player.exe](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.exe)** (or the [ZIP archive](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player-Windows.zip)).
-2. Double-click `PVP-Player.exe`.
-3. The app starts a local server on your computer, places an orange VLC cone icon in your system tray, and opens your default browser at `http://127.0.0.1:8000`.
-4. Right-click the system tray icon to **Open Browser**, **Restart Server**, or **Quit**.
-5. Local server automatically listens on your local Wi-Fi network so your mobile devices at home can connect directly without internet.
-
-### 📱 2. Android Mobile App (`.apk`)
-
-1. Download **[PVP-Player.apk](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.apk)** directly onto your Android device.
-2. Tap the downloaded `.apk` file to install (if prompted, tap *Settings* and enable *Allow from this source*).
-3. **Features on Android**:
-   - **Direct Video Streaming**: Plays videos directly with zero storage waste and no waiting for downloads.
-   - **Smart Clipboard Auto-Detection**: Copy any video link (YouTube, Instagram, TikTok, Reddit, etc.) and open PVP Player — it immediately prompts you to stream with one tap.
-   - **One-Tap "Paste & Play"**: Dedicated orange button on the cone screen and menu bar.
-   - **Native Android Share Intent**: Tap "Share" on any video in YouTube, Instagram, or your browser, then select **PVP Player** to start streaming right away.
-   - **Offline & Standalone**: Direct video links (.mp4, .m3u8, YouTube, Vimeo) play directly on device. For local LAN extraction, configure your PC's IP in **Tools > Local Server Settings**.
-   - **Immersive Fullscreen & Screen WakeLock**: Automatically hides navigation bars and keeps the screen awake during playback.
-
-### 🧩 3. Chrome Browser Extension (Manifest V3)
-
-1. Click **[Download Chrome-Extension.zip](https://github.com/pkgtm2419/online-VLC/raw/main/releases/pvp-chrome-extension.zip)** and extract the zip file.
-2. In Google Chrome, Brave, or Microsoft Edge, navigate to `chrome://extensions/`.
-3. Enable **Developer mode** using the toggle switch in the top-right corner.
-4. Click the **Load unpacked** button and select the extracted `pvp-chrome-extension` folder.
-5. **How to use**:
-   - The extension popup features a clean **Enable / Disable** toggle.
-   - When enabled, any `<video>` or iframe on YouTube, movie sites, or web pages will show a floating **"Open with PVP"** button.
-   - Clicking the button opens the stream in your local PVP player (`http://127.0.0.1:8000/?url=...`).
+- **Direct Download**: **[PVP-Player.exe](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.exe)** (or [PVP-Player-Windows.zip](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player-Windows.zip)).
+- **Quick Run**: Double-click `PVP-Player.exe`. The app starts a local server on your computer, places an orange VLC cone icon in your system tray, and opens your default browser at `http://127.0.0.1:8000`.
+- **System Tray Options**: Right-click the system tray icon to **Open Browser**, **Restart Server**, or **Quit**.
+- **Build from Source**:
+  ```powershell
+  cd windows-app
+  pip install -r requirements.txt
+  python build.py
+  ```
 
 ---
 
-## 🌟 Key Features
+### 📱 2. Android Mobile App (`android-app/`)
+
+- **Direct Download**: **[PVP-Player.apk](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.apk)**.
+- **Install**: Tap `PVP-Player.apk` on your Android device (enable *Install unknown apps* if prompted).
+- **Mobile UI & Touch Controls**:
+  - **Clean Mobile Header**: Mobile-optimized header with VLC cone, direct "Open URL", and "Paste & Play" buttons.
+  - **Gesture Seeking**: Double-tap left side of the screen to jump backward 10s, double-tap right side to jump forward 10s.
+  - **Share to Play**: Share any video link from YouTube, Instagram, TikTok, Reddit, Chrome, or any other app directly to **PVP Player** — it auto-detects the URL and begins playback instantly with zero manual clicks.
+  - **Clipboard Auto-Detection**: Automatically detects video URLs on your clipboard when opening the app and prompts for immediate streaming.
+  - **Full Offline Operation**: Direct video URLs (.mp4, .m3u8, etc.) stream directly on device without any local or external server.
+- **Build from Source**:
+  ```powershell
+  cd android-app
+  gradle assembleDebug
+  ```
+
+---
+
+### 🧩 3. Chrome Browser Extension (`chrome-extension/`)
+
+- **Direct Download**: **[pvp-chrome-extension.zip](https://github.com/pkgtm2419/online-VLC/raw/main/releases/pvp-chrome-extension.zip)**.
+- **Installation**:
+  1. Extract `pvp-chrome-extension.zip`.
+  2. Open Chrome, Brave, or Edge and go to `chrome://extensions/`.
+  3. Turn on **Developer mode** in the top-right corner.
+  4. Click **Load unpacked** and select the extracted folder.
+- **How to Use**:
+  - Click the extension icon to toggle it **ON** or **OFF**.
+  - When enabled, every `<video>` and video embed on any webpage displays a floating **"Open with PVP"** button.
+  - Clicking the button automatically opens the video in the extension's **internal standalone VLC player tab** (`player/player.html`) with zero dependency on external servers or desktop apps.
+
+---
+
+## 🌟 Player Capabilities
 
 - **🛡️ 100% Ad-Free**: Extracts pure media streams from CDNs, completely bypassing pre-rolls, mid-rolls, pop-ups, and trackers.
 - **🔒 Zero Cloud Interaction**: All operations run locally on your hardware. No external tracking, no cloud telemetry.
@@ -105,72 +170,6 @@ Choose your platform below to download the pre-built files directly from this re
 | <kbd>]</kbd> / <kbd>[</kbd> | **Faster / Slower** speed (+0.1x / -0.1x) |
 | <kbd>=</kbd> | **Reset** speed to 1.0x (Normal) |
 | <kbd>Esc</kbd> | **Close dialog** or exit fullscreen |
-
----
-
-## 💻 Developer & Source Instructions
-
-### Option 1: Run Desktop App Locally from Python
-```powershell
-# Clone repo
-git clone https://github.com/pkgtm2419/online-VLC.git
-cd online-VLC
-
-# Install dependencies and start
-pip install -r requirements.txt
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-Open **[http://localhost:8000](http://localhost:8000)** in your browser.
-
-### Option 2: Build Standalone Windows Executable
-```powershell
-cd desktop
-pip install -r requirements-desktop.txt
-python build.py
-```
-Output: `desktop/dist/PVP-Player.exe`
-
-### Option 3: Build Android APK
-```powershell
-cd mobile/android
-./gradlew assembleDebug
-```
-Output: `mobile/android/app/build/outputs/apk/debug/app-debug.apk`
-
----
-
-## 📁 Repository Structure
-
-```
-online-VLC/
-├── releases/                   # Direct download builds for all 3 platforms
-│   ├── PVP-Player.exe          # Standalone Windows executable (36 MB)
-│   ├── PVP-Player-Windows.zip  # Windows package archive
-│   ├── PVP-Player.apk          # Installable Android Mobile APK (6 MB)
-│   ├── pvp-android-mobile.zip  # Android project source archive
-│   └── pvp-chrome-extension.zip# Chrome browser extension package
-├── app/                        # Core application
-│   ├── main.py                 # FastAPI backend
-│   ├── extractor.py            # Universal video & movie scraper
-│   ├── streamer.py             # Streaming proxy & FFmpeg muxer
-│   └── static/                 # Authentic VLC frontend
-│       ├── index.html          # VLC layout, menus & modals
-│       ├── app.js              # VLC client player logic & offline fallback
-│       ├── style.css           # Authentic VLC styling & themes
-│       └── hls.min.js          # Offline HLS streaming engine
-├── desktop/                    # Windows desktop launcher & build
-│   ├── pvp_desktop.py          # System tray application & server runner
-│   ├── build.py                # PyInstaller build script
-│   └── pvp.spec                # PyInstaller spec
-├── mobile/                     # Android application
-│   └── android/                # Native Android Studio Gradle project
-├── extension/                  # Chrome extension (Manifest V3)
-│   ├── manifest.json           # Extension manifest
-│   ├── popup.html/css/js       # Toggle button interface
-│   ├── content.js/css          # "Open with PVP" button injector
-│   └── icons/                  # VLC icons
-└── README.md                   # Documentation & direct download links
-```
 
 ---
 

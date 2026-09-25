@@ -1,8 +1,0 @@
-pystray
-Pillow
-pyinstaller
-uvicorn
-fastapi
-yt-dlp
-httpx
-pydantic
