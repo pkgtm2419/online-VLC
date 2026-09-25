@@ -1,40 +1,22 @@
 # 🎬 PVP (Personal Video Player) — Online VLC
 
+### 🚀 **Live Web Application**: [https://online-vlc.onrender.com](https://online-vlc.onrender.com)
+
+[![Live Web App](https://img.shields.io/badge/Live%20App-online--vlc.onrender.com-success?style=for-the-badge&logo=render)](https://online-vlc.onrender.com)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-pkgtm2419%2Fonline--VLC-blue?style=for-the-badge&logo=github)](https://github.com/pkgtm2419/online-VLC)
 [![CI/CD Pipeline](https://github.com/pkgtm2419/online-VLC/actions/workflows/deploy.yml/badge.svg)](https://github.com/pkgtm2419/online-VLC/actions)
-[![GitHub Container Registry](https://img.shields.io/badge/Container-GHCR-blue?logo=docker)](https://github.com/pkgtm2419/online-VLC/pkgs/container/online-vlc)
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/pkgtm2419/online-VLC)
 
 > **PVP (Personal Video Player)** is a universal, ad-free web video player designed with the authentic layout, controls, and keyboard shortcuts of **VLC Media Player**. Paste any video or playlist URL from anywhere on the internet or cloud storage, and enjoy instant, ad-free playback.
 
 ---
 
-## 🌐 Public Application URLs & Deployment
+## 🌐 Open the Application Directly
 
-Because **PVP** requires a live Python backend with **FFmpeg** and **yt-dlp** to extract streams and bypass ads, GitHub Pages (which only supports static HTML without a server) cannot run the backend directly.
+You can open and use the live application right now in your web browser:
 
-Instead, the application is deployed through the following channels:
+👉 **[https://online-vlc.onrender.com](https://online-vlc.onrender.com)**
 
-### 1. 🚀 One-Click Free Public Cloud URL (Render)
-Click the button below to deploy your own live, public web URL (e.g. `https://online-vlc.onrender.com`):
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/pkgtm2419/online-VLC)
-
-*(Deployment takes ~2 minutes and gives you a free, public `https://<your-app-name>.onrender.com` URL accessible by anyone on any device)*.
-
-### 2. 📦 Published Docker Image (GitHub Container Registry)
-GitHub Actions automatically builds and publishes the production container image on every push:
-- **Registry URI**: `ghcr.io/pkgtm2419/online-vlc:latest`
-- **Package Page**: [https://github.com/pkgtm2419/online-VLC/pkgs/container/online-vlc](https://github.com/pkgtm2419/online-VLC/pkgs/container/online-vlc)
-
-To run the published image on any server or VPS in one command:
-```bash
-docker run -d -p 8000:8000 --name pvp ghcr.io/pkgtm2419/online-vlc:latest
-```
-Then visit `http://localhost:8000` (or `http://<your-server-ip>:8000`).
-
-### 3. 💻 Local Web URL
-When running locally on your computer:
-- **Local Address**: [**http://localhost:8000**](http://localhost:8000)
+*(Works on all mobile, tablet, and desktop browsers with zero installation required)*
 
 ---
 
