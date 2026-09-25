@@ -59,6 +59,202 @@ def format_duration(seconds: Optional[float]) -> str:
     return f"{minutes:02d}:{remaining_secs:02d}"
 
 
+def unpack_dean_edwards(packed: str) -> str:
+    m = re.search(r"\}\('(.*)',\s*(\d+),\s*(\d+),\s*'([^']*)'\.split\('\|'\)", packed)
+    if not m:
+        m = re.search(r'\}\("(.*)",\s*(\d+),\s*(\d+),\s*"([^"]*)"\.split\("\|"\)', packed)
+    if not m:
+        return ""
+    p, a, c, k = m.groups()
+    a = int(a)
+    c = int(c)
+    k = k.split('|')
+
+    def baseN(num, b):
+        digits = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        res = ""
+        while num > 0:
+            res = digits[num % b] + res
+            num //= b
+        return res or "0"
+
+    for i in range(c - 1, -1, -1):
+        val = k[i] if i < len(k) and k[i] else baseN(i, a)
+        p = re.sub(r'\b' + baseN(i, a) + r'\b', val, p)
+    return p
+
+
+def extract_streams_from_html(html: str) -> List[str]:
+    streams = []
+    # 1. Unpack any Dean Edwards scripts
+    packed_matches = re.findall(r'(eval\(function\(p,a,c,k,e,d\).*?\.split\([\'\"]\|[\'\"]\).*?\)\))', html, re.S)
+    for pm in packed_matches:
+        unpacked = unpack_dean_edwards(pm)
+        m3u8s = re.findall(r'https?://[^\s"\'<>\\]+\.(?:m3u8|mp4)[^\s"\'<>\\]*', unpacked)
+        if m3u8s:
+            streams.extend(m3u8s)
+
+    # 2. Search for direct m3u8 or mp4 in HTML
+    m3u8s = re.findall(r'https?://[^\s"\'<>\\]+\.(?:m3u8|mp4)[^\s"\'<>\\]*', html)
+    if m3u8s:
+        streams.extend(m3u8s)
+
+    # 3. Search for video or source src
+    srcs = re.findall(r'<(?:video|source)[^>]+src=[\'"]([^\'"]+)[\'"]', html, re.I)
+    for s in srcs:
+        if any(ext in s.lower() for ext in ['.m3u8', '.mp4', '.webm', '.mkv']):
+            streams.append(s)
+
+    return list(dict.fromkeys(streams))
+
+
+def scrape_movie_webpage(url: str) -> Optional[Dict[str, Any]]:
+    """
+    Intelligent scraper for movie/anime streaming pages, WordPress DooPlay players,
+    and packed streaming hosts (Minochinos, Callistanise, ModiPlay, etc.).
+    """
+    import ssl
+    import urllib.request
+    import json
+
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, context=ctx, timeout=12) as resp:
+            final_url = resp.geturl()
+            html = resp.read().decode('utf-8', errors='ignore')
+    except Exception:
+        return None
+
+    # Title extraction
+    title_m = re.search(r'<title>(.*?)</title>', html, re.I | re.S)
+    raw_title = title_m.group(1).strip() if title_m else "Movie Stream"
+    clean_title = re.sub(r'^(?:Multimovies\s*\|\s*|Download\s*[–—-]\s*|Watch\s+)', '', raw_title, flags=re.I).strip()
+    clean_title = re.sub(r'\s*\|\s*Multimovies.*$', '', clean_title, flags=re.I).strip()
+    clean_title = re.sub(r'\s*–\s*.*$', '', clean_title).strip()
+    if not clean_title:
+        clean_title = "Movie Stream"
+
+    # Poster / Thumbnail
+    thumb_m = re.search(r'<meta[^>]+property=[\'"]og:image[\'"][^>]+content=[\'"]([^\'"]+)[\'"]', html, re.I)
+    thumbnail = thumb_m.group(1).strip() if thumb_m else None
+
+    # 1. Direct stream in page
+    streams = extract_streams_from_html(html)
+    if streams:
+        return {"title": clean_title, "stream": streams[0], "thumbnail": thumbnail}
+
+    # 2. DooPlay player options (common on movie streaming sites)
+    dooplay_lis = re.findall(r'<li[^>]+class=[\'"][^\'"]*dooplay_player_option[^\'"]*[\'"][^>]*>', html)
+    dooplay_options = []
+    for li in dooplay_lis:
+        p_m = re.search(r'data-post=[\'"](\d+)[\'"]', li)
+        n_m = re.search(r'data-nume=[\'"]([^\'"]+)[\'"]', li)
+        t_m = re.search(r'data-type=[\'"]([^\'"]+)[\'"]', li)
+        if p_m and n_m and t_m:
+            dooplay_options.append((p_m.group(1), n_m.group(1), t_m.group(1)))
+
+    embed_urls = []
+    parsed_url = urllib.parse.urlparse(final_url)
+    origin = f"{parsed_url.scheme}://{parsed_url.netloc}"
+
+    if dooplay_options:
+        for post_id, nume, opt_type in dooplay_options:
+            if nume == 'trailer':
+                continue
+            try:
+                ajax_data = urllib.parse.urlencode({
+                    'action': 'doo_player_ajax',
+                    'post': post_id,
+                    'nume': nume,
+                    'type': opt_type
+                }).encode('utf-8')
+                ajax_req = urllib.request.Request(
+                    f"{origin}/wp-admin/admin-ajax.php",
+                    data=ajax_data,
+                    headers={
+                        'User-Agent': headers['User-Agent'],
+                        'Referer': final_url,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                )
+                with urllib.request.urlopen(ajax_req, context=ctx, timeout=8) as aresp:
+                    res_json = json.loads(aresp.read().decode('utf-8'))
+                    emb = res_json.get('embed_url')
+                    if emb:
+                        emb = emb.replace('\\/', '/')
+                        embed_urls.append(emb)
+            except Exception:
+                pass
+
+    # 3. Look for streaming host / download links
+    all_links = re.findall(r'href=[\'"](https?://[^\'"]+)[\'"]', html)
+    for l in all_links:
+        if any(h in l for h in ['minochinos.com', 'callistanise.com', 'embedseek', 'p2pplay', 'embed4me', 'rpmhub', 'streamwish', 'streamtape', 'vidcloud']):
+            clean_l = l.replace('&amp;', '&')
+            if '/download/' in clean_l:
+                clean_l = clean_l.replace('/download/', '/embed/')
+            embed_urls.append(clean_l)
+
+    # 4. Resolve candidate embed pages to unpack direct video streams
+    for e_url in embed_urls:
+        try:
+            ereq = urllib.request.Request(e_url, headers={'User-Agent': headers['User-Agent'], 'Referer': final_url})
+            with urllib.request.urlopen(ereq, context=ctx, timeout=10) as eresp:
+                e_html = eresp.read().decode('utf-8', errors='ignore')
+                e_final = eresp.geturl()
+
+            e_streams = extract_streams_from_html(e_html)
+            if e_streams:
+                return {"title": clean_title, "stream": e_streams[0], "thumbnail": thumbnail}
+
+            # Check nested host links (e.g. minochinos inside modiplay embed)
+            sub_links = re.findall(r'https?://[^\s"\'<>\\]+', e_html)
+            for sl in sub_links:
+                if any(h in sl for h in ['minochinos.com', 'callistanise.com']) and sl not in embed_urls:
+                    csl = sl.replace('/download/', '/embed/').replace('&amp;', '&')
+                    try:
+                        sreq = urllib.request.Request(csl, headers={'User-Agent': headers['User-Agent'], 'Referer': e_final})
+                        with urllib.request.urlopen(sreq, context=ctx, timeout=10) as sresp:
+                            s_html = sresp.read().decode('utf-8', errors='ignore')
+                            s_streams = extract_streams_from_html(s_html)
+                            if s_streams:
+                                return {"title": clean_title, "stream": s_streams[0], "thumbnail": thumbnail}
+                    except Exception:
+                        pass
+
+            # Check sub-iframes (e.g. proxy.php)
+            sub_iframes = re.findall(r'<iframe[^>]+src=[\'"]([^\'"]+)[\'"]', e_html)
+            for sub_ifr in sub_iframes:
+                sub_url = urllib.parse.urljoin(e_final, sub_ifr.replace('&amp;', '&'))
+                try:
+                    sreq = urllib.request.Request(sub_url, headers={'User-Agent': headers['User-Agent'], 'Referer': e_final})
+                    with urllib.request.urlopen(sreq, context=ctx, timeout=10) as sresp:
+                        s_html = sresp.read().decode('utf-8', errors='ignore')
+                        s_streams = extract_streams_from_html(s_html)
+                        if s_streams:
+                            return {"title": clean_title, "stream": s_streams[0], "thumbnail": thumbnail}
+                except Exception:
+                    pass
+
+        except Exception:
+            pass
+
+    # 5. Fallback: return embed URL if found
+    if embed_urls:
+        return {"title": clean_title, "embed": embed_urls[0], "thumbnail": thumbnail}
+
+    return None
+
+
 def extract_single_video_info(cleaned_url: str) -> Dict[str, Any]:
     """Extract formats and streams for an individual video link."""
     # Check direct media link
@@ -350,6 +546,61 @@ def extract_video_info(url: str, force_single: bool = False) -> Dict[str, Any]:
                 ],
                 "default_quality_index": 0
             }
+
+        # Movie & web streaming site fallback
+        scraped = scrape_movie_webpage(cleaned_url)
+        if scraped:
+            clean_title = scraped.get("title", "Movie Stream")
+            thumb = scraped.get("thumbnail")
+            if scraped.get("stream"):
+                stream_url = scraped["stream"]
+                is_hls = '.m3u8' in stream_url
+                return {
+                    "success": True,
+                    "is_playlist": False,
+                    "title": clean_title,
+                    "uploader": "Web Stream",
+                    "duration": None,
+                    "duration_str": "--:--",
+                    "thumbnail": thumb,
+                    "webpage_url": cleaned_url,
+                    "is_direct": True,
+                    "qualities": [
+                        {
+                            "label": "Master HLS (Auto)" if is_hls else "Direct Stream",
+                            "height": 1080,
+                            "type": "direct",
+                            "video_url": stream_url,
+                            "audio_url": None,
+                            "is_hls": is_hls
+                        }
+                    ],
+                    "default_quality_index": 0
+                }
+            elif scraped.get("embed"):
+                embed_url = scraped["embed"]
+                return {
+                    "success": True,
+                    "is_playlist": False,
+                    "title": clean_title,
+                    "uploader": "Web Stream",
+                    "duration": None,
+                    "duration_str": "--:--",
+                    "thumbnail": thumb,
+                    "webpage_url": cleaned_url,
+                    "is_direct": False,
+                    "qualities": [
+                        {
+                            "label": "Embed Player",
+                            "height": 1080,
+                            "type": "embed",
+                            "video_url": embed_url,
+                            "audio_url": None,
+                            "is_hls": False
+                        }
+                    ],
+                    "default_quality_index": 0
+                }
 
         return {
             "success": False,
