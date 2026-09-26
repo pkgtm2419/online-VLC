@@ -14,8 +14,9 @@ hiddenimports = (
     collect_submodules('yt_dlp') +
     collect_submodules('starlette') +
     collect_submodules('pydantic') +
-    ['pystray', 'PIL']
+    ['pystray', 'PIL', 'sqlite3']
 )
+
 
 datas = [
     (os.path.join(project_dir, 'app'), 'app'),

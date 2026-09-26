@@ -520,7 +520,81 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     }
 
-    // 2. Vimeo
+    // 2. Mega.nz shared files
+    const megaMatch = rawUrl.match(/mega\.nz\/(?:file|embed)\/([a-zA-Z0-9_-]+)#([a-zA-Z0-9_-]+)/i) || rawUrl.match(/mega\.nz\/#\!([a-zA-Z0-9_-]+)\!([a-zA-Z0-9_-]+)/i);
+    if (megaMatch) {
+      const fileId = megaMatch[1];
+      const fileKey = megaMatch[2];
+      return {
+        success: true,
+        title: fallbackTitle || `Mega Video (${fileId})`,
+        is_embed_fallback: true,
+        qualities: [{
+          label: 'Auto (Mega Embed)',
+          type: 'embed',
+          video_url: `https://mega.nz/embed/${fileId}#${fileKey}`
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    // 3. Telegram public post/channel video links
+    const tgMatch = rawUrl.match(/t\.me\/(?:c\/\d+\/|)([a-zA-Z0-9_]+)\/(\d+)/i);
+    if (tgMatch) {
+      const channel = tgMatch[1];
+      const msgId = tgMatch[2];
+      return {
+        success: true,
+        title: fallbackTitle || `Telegram Video (@${channel}/${msgId})`,
+        is_embed_fallback: true,
+        qualities: [{
+          label: 'Auto (Telegram Embed)',
+          type: 'embed',
+          video_url: `https://t.me/${channel}/${msgId}?embed=1`
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    // 4. Google Drive
+    const gdriveMatch = rawUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/i) || rawUrl.match(/drive\.google\.com\/open\?id=([a-zA-Z0-9_-]+)/i);
+    if (gdriveMatch) {
+      const fileId = gdriveMatch[1];
+      const streamUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+      return {
+        success: true,
+        title: fallbackTitle || 'Google Drive Video',
+        qualities: [{
+          label: 'Direct Stream',
+          type: 'direct',
+          video_url: streamUrl,
+          is_hls: false
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    // 5. Dropbox
+    if (rawUrl.includes('dropbox.com')) {
+      let streamUrl = rawUrl;
+      if (streamUrl.includes('dl=0')) streamUrl = streamUrl.replace('dl=0', 'raw=1');
+      else if (!streamUrl.includes('dl=1') && !streamUrl.includes('raw=1')) {
+        streamUrl += (streamUrl.includes('?') ? '&' : '?') + 'raw=1';
+      }
+      return {
+        success: true,
+        title: fallbackTitle || 'Dropbox Video',
+        qualities: [{
+          label: 'Direct Stream',
+          type: 'direct',
+          video_url: streamUrl,
+          is_hls: false
+        }],
+        default_quality_index: 0
+      };
+    }
+
+    // 6. Vimeo
     const vimeoMatch = rawUrl.match(/vimeo\.com\/(?:video\/)?([0-9]+)/i);
     if (vimeoMatch) {
       return {
@@ -535,6 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
         default_quality_index: 0
       };
     }
+
 
     // 3. Dailymotion
     const dmMatch = rawUrl.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/i);

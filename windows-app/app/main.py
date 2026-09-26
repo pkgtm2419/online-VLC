@@ -28,12 +28,29 @@ except Exception:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_FILE = DATA_DIR / "history.json"
 
-app = FastAPI(title="Ad-Free Universal Video Player", version="1.0.0")
+app = FastAPI(title="Ad-Free Universal Video Player", version="2.0.0")
 
-# Security & Privacy: Restrict CORS to localhost, private LAN subnets, and browser extensions
+# List of known ad and tracking domains to block
+AD_BLOCKING_LIST = {
+    # Advertising networks
+    'doubleclick.net', 'googleadservices.com', 'googlesyndication.com',
+    'adnxs.com', 'ads.google.com', 'pagead2.googlesyndication.com',
+    'ads-google.com', 'ads.pubmatic.com', 'ads.openx.com',
+    'ads-vip.spotify.com', 'analytics.google.com', 'google-analytics.com',
+    
+    # Tracking & Analytics
+    'mixpanel.com', 'segment.com', 'amplitude.com', 'intercom.io',
+    'facebook.com/tr', 'connect.facebook.net', 'pixel.facebook.com',
+    
+    # Video ad & tracking services
+    'platform.twitter.com', 'analytics.twitter.com', 'ads.twitter.com',
+    'player.vimeo.com/analytics', 'amazon-adsystem.com',
+}
+
+# Security & Privacy: Restrict CORS to localhost and private LAN subnets
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$|^chrome-extension://[a-z]+$",
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$",
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
@@ -42,7 +59,7 @@ app.add_middleware(
 @app.middleware("http")
 async def add_security_privacy_headers(request: Request, call_next):
     """
-    Enforce zero-tracking privacy headers and strict Content Security Policy.
+    Enforce zero-tracking privacy headers, ad-blocking, and strict Content Security Policy.
     Blocks external analytics, telemetry, tracking pixels, and unauthorized scripts.
     """
     response = await call_next(request)
@@ -50,23 +67,26 @@ async def add_security_privacy_headers(request: Request, call_next):
     # 1. Block tracking cookies
     if "set-cookie" in response.headers:
         del response.headers["set-cookie"]
+        
+    # 2. Tracking Protection Header
+    response.headers["X-Tracking-Protection"] = "full"
     
-    # 2. Prevent MIME type sniffing
+    # 3. Prevent MIME type sniffing
     response.headers["X-Content-Type-Options"] = "nosniff"
     
-    # 3. Prevent Clickjacking
+    # 4. Prevent Clickjacking
     response.headers["X-Frame-Options"] = "SAMEORIGIN"
     
-    # 4. Browser XSS protection
+    # 5. Browser XSS protection
     response.headers["X-XSS-Protection"] = "1; mode=block"
     
-    # 5. Referrer Policy: never leak user's stream history in HTTP Referer
+    # 6. Referrer Policy: never leak user's stream history in HTTP Referer
     response.headers["Referrer-Policy"] = "no-referrer"
     
-    # 6. Permissions Policy: strictly forbid access to camera, microphone, geolocation
+    # 7. Permissions Policy: strictly forbid access to camera, microphone, geolocation
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
     
-    # 7. Content Security Policy: enforce offline local execution and allow media streaming
+    # 8. Content Security Policy: enforce offline local execution and allow media streaming
     response.headers["Content-Security-Policy"] = (
         "default-src 'self' 'unsafe-inline' data: blob:; "
         "script-src 'self' 'unsafe-inline' blob:; "
@@ -74,11 +94,12 @@ async def add_security_privacy_headers(request: Request, call_next):
         "media-src 'self' blob: http: https:; "
         "img-src 'self' data: blob: https:; "
         "connect-src 'self' http: https: ws: wss:; "
-        "frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com https://www.dailymotion.com; "
+        "frame-src 'self' https://www.youtube-nocookie.com https://player.vimeo.com https://www.dailymotion.com https://mega.nz https://t.me; "
         "object-src 'none';"
     )
     
     return response
+
 
 class ExtractRequest(BaseModel):
     url: str
@@ -124,7 +145,13 @@ async def extract_url(req: ExtractRequest):
     if hostname in {"169.254.169.254", "metadata.google.internal", "instance-data"}:
         raise HTTPException(status_code=403, detail="Access to cloud metadata endpoints is forbidden.")
 
+    # Block known advertising and tracking networks
+    for ad_domain in AD_BLOCKING_LIST:
+        if ad_domain in hostname:
+            raise HTTPException(status_code=400, detail=f"Ad and tracking network URLs are blocked ({ad_domain}).")
+
     info = extract_video_info(url)
+
     
     if not info.get("success") and not info.get("qualities") and not info.get("entries"):
         raise HTTPException(status_code=400, detail=info.get("error", "Failed to extract video."))
@@ -191,6 +218,169 @@ def get_history():
 def clear_history():
     save_history([])
     return {"status": "cleared"}
+
+
+@app.post("/api/check-url-safety")
+def check_url_safety(req: dict):
+    """Verify that a URL does not originate from an ad or tracking network."""
+    url = (req.get("url") or "").lower()
+    for ad_domain in AD_BLOCKING_LIST:
+        if ad_domain in url:
+            return {
+                "safe": False,
+                "reason": f"URL contains ad/tracking domain: {ad_domain}",
+                "blocked_domain": ad_domain
+            }
+    return {"safe": True}
+
+
+# ==========================================
+# SQLITE PERSISTENT PLAYLIST SYSTEM
+# ==========================================
+import sqlite3
+import time
+import random
+
+PLAYLISTS_DB = DATA_DIR / "playlists.db"
+
+def init_playlists_db():
+    conn = sqlite3.connect(PLAYLISTS_DB)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS playlists (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS playlist_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            playlist_id TEXT NOT NULL,
+            url TEXT NOT NULL,
+            title TEXT,
+            duration INTEGER,
+            duration_str TEXT,
+            position INTEGER DEFAULT 0,
+            FOREIGN KEY (playlist_id) REFERENCES playlists(id) ON DELETE CASCADE
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_playlists_db()
+
+class PlaylistCreate(BaseModel):
+    title: str
+    description: Optional[str] = ""
+
+class PlaylistItemAdd(BaseModel):
+    url: str
+    title: Optional[str] = ""
+    duration: Optional[int] = 0
+    duration_str: Optional[str] = "--:--"
+    position: Optional[int] = 0
+
+@app.post("/api/playlists")
+def create_playlist(playlist: PlaylistCreate):
+    playlist_id = f"pl_{int(time.time())}_{random.randint(1000, 9999)}"
+    conn = sqlite3.connect(PLAYLISTS_DB)
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO playlists (id, title, description) VALUES (?, ?, ?)',
+        (playlist_id, playlist.title.strip() or 'New Playlist', playlist.description or '')
+    )
+    conn.commit()
+    conn.close()
+    return {"id": playlist_id, "title": playlist.title, "status": "created"}
+
+@app.get("/api/playlists")
+def list_playlists():
+    conn = sqlite3.connect(PLAYLISTS_DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, title, description, created_at FROM playlists ORDER BY created_at DESC')
+    rows = cursor.fetchall()
+    playlists = []
+    for r in rows:
+        c2 = conn.cursor()
+        c2.execute('SELECT COUNT(*) FROM playlist_items WHERE playlist_id = ?', (r["id"],))
+        item_count = c2.fetchone()[0]
+        playlists.append({
+            "id": r["id"],
+            "title": r["title"],
+            "description": r["description"],
+            "created_at": r["created_at"],
+            "item_count": item_count
+        })
+    conn.close()
+    return {"playlists": playlists}
+
+@app.get("/api/playlists/{playlist_id}")
+def get_playlist(playlist_id: str):
+    conn = sqlite3.connect(PLAYLISTS_DB)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, title, description, created_at FROM playlists WHERE id = ?', (playlist_id,))
+    p = cursor.fetchone()
+    if not p:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    
+    cursor.execute('SELECT id, playlist_id, url, title, duration, duration_str, position FROM playlist_items WHERE playlist_id = ? ORDER BY position ASC, id ASC', (playlist_id,))
+    items = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return {
+        "id": p["id"],
+        "title": p["title"],
+        "description": p["description"],
+        "created_at": p["created_at"],
+        "items": items
+    }
+
+@app.post("/api/playlists/{playlist_id}/add")
+def add_to_playlist(playlist_id: str, item: PlaylistItemAdd):
+    conn = sqlite3.connect(PLAYLISTS_DB)
+    cursor = conn.cursor()
+    cursor.execute('SELECT id FROM playlists WHERE id = ?', (playlist_id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    
+    cursor.execute('SELECT COALESCE(MAX(position), -1) + 1 FROM playlist_items WHERE playlist_id = ?', (playlist_id,))
+    next_pos = cursor.fetchone()[0]
+    pos = item.position if item.position is not None and item.position > 0 else next_pos
+    
+    cursor.execute(
+        'INSERT INTO playlist_items (playlist_id, url, title, duration, duration_str, position) VALUES (?, ?, ?, ?, ?, ?)',
+        (playlist_id, item.url, item.title or "Video Track", item.duration, item.duration_str, pos)
+    )
+    item_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return {"status": "added", "item_id": item_id}
+
+@app.delete("/api/playlists/{playlist_id}")
+def delete_playlist(playlist_id: str):
+    conn = sqlite3.connect(PLAYLISTS_DB)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM playlist_items WHERE playlist_id = ?', (playlist_id,))
+    cursor.execute('DELETE FROM playlists WHERE id = ?', (playlist_id,))
+    conn.commit()
+    conn.close()
+    return {"status": "deleted"}
+
+@app.delete("/api/playlists/{playlist_id}/items/{item_id}")
+def delete_playlist_item(playlist_id: str, item_id: int):
+    conn = sqlite3.connect(PLAYLISTS_DB)
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM playlist_items WHERE playlist_id = ? AND id = ?', (playlist_id, item_id))
+    conn.commit()
+    conn.close()
+    return {"status": "deleted"}
+
 
 
 # Mount static assets

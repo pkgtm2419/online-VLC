@@ -37,7 +37,231 @@ def normalize_storage_url(url: str) -> str:
         file_id = gdrive_open.group(1)
         return f"https://drive.google.com/uc?export=download&id={file_id}"
 
+    # OneDrive
+    if "onedrive.live.com" in url or "1drv.ms" in url:
+        if "download=1" not in url:
+            sep = "&" if "?" in url else "?"
+            url = f"{url}{sep}download=1"
+        return url
+
     return url
+
+
+def extract_telegram_file(url: str) -> Optional[Dict[str, Any]]:
+    """
+    Extract video directly from Telegram public message / channel links.
+    Example: https://t.me/username/1234 or https://t.me/c/1234/567
+    Uses Telegram's public embed widget (t.me/<username>/<id>?embed=1).
+    """
+    import ssl
+    import urllib.request
+    
+    match = re.search(r't\.me/(?:c/\d+/|)([a-zA-Z0-9_]+)/(\d+)', url)
+    if not match:
+        return None
+        
+    username, msg_id = match.groups()
+    embed_url = f"https://t.me/{username}/{msg_id}?embed=1"
+    
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+    
+    try:
+        req = urllib.request.Request(embed_url, headers=headers)
+        with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
+            html = resp.read().decode('utf-8', errors='ignore')
+    except Exception:
+        return None
+        
+    # Search for video source in widget HTML
+    video_m = re.search(r'<video[^>]+src=["\']([^"\']+)["\']', html)
+    if not video_m:
+        video_m = re.search(r'["\'](https?://[^"\']+\.telesco\.pe/[^"\']+\.mp4[^"\']*)["\']', html)
+    
+    if not video_m:
+        return None
+        
+    stream_url = video_m.group(1).replace('&amp;', '&')
+    
+    dur_m = re.search(r'class=["\']tgme_widget_message_video_duration["\']>([^<]+)<', html)
+    duration_str = dur_m.group(1).strip() if dur_m else "--:--"
+    
+    thumb_m = re.search(r'background-image:url\(["\']?([^"\'\)]+)["\']?\)', html)
+    thumbnail = thumb_m.group(1) if thumb_m else None
+    
+    text_m = re.search(r'class=["\']tgme_widget_message_text[^>]*>(.*?)</div>', html, re.S)
+    if text_m:
+        clean_title = re.sub(r'<[^>]+>', '', text_m.group(1)).strip()
+        title = clean_title[:80] + ('...' if len(clean_title) > 80 else '')
+    else:
+        title = f"Telegram Video (@{username}/{msg_id})"
+        
+    return {
+        "success": True,
+        "is_playlist": False,
+        "title": title or f"Telegram Video (@{username}/{msg_id})",
+        "uploader": f"@{username}",
+        "duration": None,
+        "duration_str": duration_str,
+        "thumbnail": thumbnail,
+        "webpage_url": url,
+        "is_direct": True,
+        "qualities": [
+            {
+                "label": "Original (Telegram CDN)",
+                "height": 720,
+                "type": "direct",
+                "video_url": stream_url,
+                "audio_url": None,
+                "is_hls": False
+            }
+        ],
+        "default_quality_index": 0,
+        "source": "telegram"
+    }
+
+
+def extract_mega_file(url: str) -> Optional[Dict[str, Any]]:
+    """
+    Extract or embed video from Mega.nz shared links.
+    Example: https://mega.nz/file/xxxxx#yyyyy or https://mega.nz/embed/xxxxx#yyyyy
+    """
+    mega_m = re.search(r'mega\.nz/(?:file|embed)/([a-zA-Z0-9_-]+)#([a-zA-Z0-9_-]+)', url)
+    if not mega_m:
+        mega_old = re.search(r'mega\.nz/#\!([a-zA-Z0-9_-]+)\!([a-zA-Z0-9_-]+)', url)
+        if mega_old:
+            file_id, file_key = mega_old.groups()
+        else:
+            return None
+    else:
+        file_id, file_key = mega_m.groups()
+        
+    embed_url = f"https://mega.nz/embed/{file_id}#{file_key}"
+    return {
+        "success": True,
+        "is_playlist": False,
+        "title": f"Mega Video ({file_id})",
+        "uploader": "Mega.nz",
+        "duration": None,
+        "duration_str": "--:--",
+        "thumbnail": None,
+        "webpage_url": url,
+        "is_embed_fallback": True,
+        "qualities": [
+            {
+                "label": "Auto (Mega Embed)",
+                "height": 1080,
+                "type": "embed",
+                "video_url": embed_url,
+                "audio_url": None,
+                "is_hls": False
+            }
+        ],
+        "default_quality_index": 0,
+        "source": "mega"
+    }
+
+
+def extract_playlist_from_index(url: str) -> Optional[Dict[str, Any]]:
+    """
+    Scan HTML index pages (e.g. Apache directory index, Nginx autoindex, open directories)
+    for video files (.mp4, .webm, .mkv, .m3u8, .avi, .mov) and auto-generate a structured playlist.
+    """
+    import ssl
+    import urllib.request
+    from urllib.parse import urljoin, unquote, urlparse
+    
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+        
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    }
+    
+    try:
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, context=ctx, timeout=8) as resp:
+            content_type = resp.headers.get('content-type', '').lower()
+            if 'text/html' not in content_type and 'application/xhtml' not in content_type:
+                return None
+            html = resp.read().decode('utf-8', errors='ignore')
+    except Exception:
+        return None
+        
+    video_exts = ('.mp4', '.webm', '.mkv', '.m3u8', '.avi', '.mov', '.flv', '.m4v')
+    
+    hrefs = re.findall(r'<a\s+[^>]*href=["\']([^"\']+)["\']', html, re.I)
+    srcs = re.findall(r'<(?:video|source)\s+[^>]*src=["\']([^"\']+)["\']', html, re.I)
+    
+    candidates = hrefs + srcs
+    video_entries = []
+    seen_urls = set()
+    
+    for c in candidates:
+        c_clean = c.strip().split('?')[0]
+        if any(c_clean.lower().endswith(ext) for ext in video_exts):
+            full_url = urljoin(url, c.strip())
+            if full_url in seen_urls:
+                continue
+            seen_urls.add(full_url)
+            
+            filename = unquote(full_url.split('/')[-1])
+            title = re.sub(r'\.(?:mp4|webm|mkv|m3u8|avi|mov|flv|m4v)$', '', filename, flags=re.I)
+            title = title.replace('_', ' ').replace('-', ' ').strip()
+            
+            video_entries.append({
+                "index": len(video_entries),
+                "id": str(len(video_entries)),
+                "title": title or filename,
+                "duration_str": "--:--",
+                "duration": None,
+                "url": full_url
+            })
+            
+    if not video_entries:
+        return None
+        
+    folder_name = unquote(parsed.path.rstrip('/').split('/')[-1]) if parsed.path.strip('/') else parsed.netloc
+    first_stream = video_entries[0]["url"]
+    is_hls = first_stream.lower().endswith('.m3u8')
+    
+    return {
+        "success": True,
+        "is_playlist": True,
+        "playlist_title": f"Directory: {folder_name or 'Media Index'}",
+        "total_tracks": len(video_entries),
+        "entries": video_entries,
+        "title": video_entries[0]["title"],
+        "duration": None,
+        "duration_str": "--:--",
+        "thumbnail": None,
+        "qualities": [
+            {
+                "label": "Direct Stream (Auto)",
+                "height": 1080,
+                "type": "direct",
+                "video_url": first_stream,
+                "audio_url": None,
+                "is_hls": is_hls
+            }
+        ],
+        "default_quality_index": 0,
+        "current_track_index": 0,
+        "source": "index_page"
+    }
+
 
 
 def is_direct_media_link(url: str) -> bool:
@@ -436,12 +660,31 @@ def extract_video_info(url: str, force_single: bool = False) -> Dict[str, Any]:
     """
     cleaned_url = normalize_storage_url(url.strip())
 
-    # If it's a direct media file, no playlist check needed
+    # 1. Telegram public post/channel video links
+    if "t.me/" in cleaned_url or "telegram.me/" in cleaned_url:
+        tg_info = extract_telegram_file(cleaned_url)
+        if tg_info:
+            return tg_info
+
+    # 2. Mega.nz shared file links
+    if "mega.nz/" in cleaned_url:
+        mega_info = extract_mega_file(cleaned_url)
+        if mega_info:
+            return mega_info
+
+    # 3. If it's a direct media file, no playlist check needed
     if is_direct_media_link(cleaned_url):
         return extract_single_video_info(cleaned_url)
 
+    # 4. Directory index / open directory playlist check
+    if cleaned_url.endswith('/') or '/index' in cleaned_url.lower():
+        idx_info = extract_playlist_from_index(cleaned_url)
+        if idx_info:
+            return idx_info
+
     # Check for playlist if force_single is not requested
     if not force_single:
+
         flat_opts = {
             'quiet': True,
             'skip_download': True,
@@ -597,7 +840,13 @@ def extract_video_info(url: str, force_single: bool = False) -> Dict[str, Any]:
                     "default_quality_index": 0
                 }
 
+        # Final check: see if URL is an index page with media files
+        idx_info = extract_playlist_from_index(cleaned_url)
+        if idx_info:
+            return idx_info
+
         return {
+
             "success": False,
             "error": str(e),
             "fallback_url": cleaned_url,

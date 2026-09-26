@@ -44,6 +44,8 @@ class MainActivity : AppCompatActivity() {
         setupFullscreen()
         setupWebView()
 
+        setupClipboardMonitoring()
+
         // Handle incoming video share intent (from YouTube, Instagram, etc.)
         handleIntent(intent)
 
@@ -51,11 +53,25 @@ class MainActivity : AppCompatActivity() {
         loadPlayer()
     }
 
+    private var clipboardListener: android.content.ClipboardManager.OnPrimaryClipChangedListener? = null
+
+    private fun setupClipboardMonitoring() {
+        try {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            clipboardListener = android.content.ClipboardManager.OnPrimaryClipChangedListener {
+                checkClipboard()
+            }
+            clipboard?.addPrimaryClipChangedListener(clipboardListener)
+        } catch (_: Exception) {}
+    }
+
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         handleIntent(intent)
     }
+
 
     private var isBackgroundPlayEnabled = false
 
@@ -323,9 +339,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        try {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            clipboardListener?.let { clipboard?.removePrimaryClipChangedListener(it) }
+        } catch (_: Exception) {}
         webView.destroy()
         super.onDestroy()
     }
+
 
     /**
      * JavaScript bridge for native Android features

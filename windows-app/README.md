@@ -30,7 +30,14 @@ Output: `dist/PVP-Player.exe`
 ---
 
 ## 🌟 Key Features
-- **100% Local**: No external servers required. Runs completely on your machine.
+- **100% Local & Ad-Free**: No external servers required. Pure stream extraction bypassing trackers and pop-up ads with built-in ad-blocking middleware.
 - **VLC Controls**: Exact keyboard shortcuts, volume boost (up to 125%), audio track switching (<kbd>B</kbd>), subtitle delay adjustment (<kbd>G</kbd>/<kbd>H</kbd>), and 5-second cursor autohide in fullscreen (<kbd>F</kbd>).
-- **Universal Streaming**: Supports YouTube, Vimeo, direct MP4/WebM/MKV, and HLS (`.m3u8`) with ad-free extraction.
+- **Universal Multi-Source Support**:
+  - YouTube (videos, playlists, shorts, live streams)
+  - Telegram public channels & messages (`t.me/...`)
+  - Mega.nz shared files (`mega.nz/file/...`)
+  - Cloud storage: Google Drive, Dropbox, OneDrive
+  - Directory index pages: Auto-scans Apache/Nginx open directories for media files and creates instant playlists
+  - Direct media files (`.mp4`, `.webm`, `.mkv`, `.mov`, `.avi`) and HLS (`.m3u8`)
+- **SQLite Persistent Playlist Management**: Save, organize, and auto-play multi-track collections.
 - **LAN Access**: Listens on local network so your mobile devices on home Wi-Fi can connect directly if desired.
