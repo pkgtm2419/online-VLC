@@ -28,7 +28,30 @@ except Exception:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_FILE = DATA_DIR / "history.json"
 
+import logging
+from logging.handlers import RotatingFileHandler
+
+logger = logging.getLogger("pvp")
+logger.setLevel(logging.INFO)
+try:
+    log_file = DATA_DIR / "pvp.log"
+    log_handler = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding="utf-8")
+    log_formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s')
+    log_handler.setFormatter(log_formatter)
+    logger.addHandler(log_handler)
+except Exception:
+    pass
+
 app = FastAPI(title="Ad-Free Universal Video Player", version="2.0.0")
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    logger.exception(f"Unhandled exception at {request.url}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Server error. Check pvp.log for details."}
+    )
+
 
 # List of known ad and tracking domains to block
 AD_BLOCKING_LIST = {
@@ -131,13 +154,19 @@ def save_history(items: List[dict]):
         pass
 
 
+MAX_URL_LENGTH = 2048
+
 @app.post("/api/extract")
 async def extract_url(req: ExtractRequest):
     url = req.url.strip()
     if not url:
         raise HTTPException(status_code=400, detail="URL cannot be empty")
+        
+    if len(url) > MAX_URL_LENGTH:
+        raise HTTPException(status_code=400, detail=f"URL exceeds {MAX_URL_LENGTH} character limit.")
     
     parsed = urllib.parse.urlparse(url)
+
     if parsed.scheme.lower() not in ("http", "https"):
         raise HTTPException(status_code=400, detail="Only HTTP and HTTPS stream protocols are supported.")
     
@@ -399,7 +428,18 @@ def get_app_js():
 def get_hls_js():
     return FileResponse(str(STATIC_DIR / "hls.min.js"), media_type="application/javascript")
 
+@app.get("/health")
+def health_check():
+    """Simple health check endpoint for monitoring."""
+    return {
+        "status": "healthy",
+        "version": "2.0.0",
+        "timestamp": time.time()
+    }
+
+
 @app.get("/")
+
 @app.head("/")
 def index():
     index_file = STATIC_DIR / "index.html"

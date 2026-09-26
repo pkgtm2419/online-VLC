@@ -30,8 +30,10 @@
           <div class="dropdown-menu">
             <div class="dropdown-item" id="menuOpenStream">Open Network Stream... <span>Ctrl+N</span></div>
             <div class="dropdown-item" id="menuTogglePlaylist">Open Playlist <span>Ctrl+L</span></div>
+            <div class="dropdown-item" id="menuSavedPlaylists">Saved Playlists...</div>
             <div class="dropdown-separator"></div>
             <div class="dropdown-item" id="menuStopVideo">Stop <span>S</span></div>
+
           </div>
         </div>
         <div class="menu-item" id="menuPlayback">Playback
@@ -235,8 +237,13 @@
             <span id="playlistTitle">Playlist</span>
             <span class="playlist-count" id="playlistCount">(0 items)</span>
           </div>
-          <button id="btnClosePlaylist" class="vlc-btn-icon" title="Close Playlist (Ctrl+L)">&times;</button>
+          <div class="playlist-header-actions" style="display: flex; gap: 6px; align-items: center;">
+            <button id="btnSaveCurrentPlaylist" class="vlc-dialog-btn" style="padding: 2px 8px; font-size: 11px;" title="Save current playlist to library">Save</button>
+            <button id="btnOpenSavedPlaylists" class="vlc-dialog-btn" style="padding: 2px 8px; font-size: 11px;" title="Open saved playlists library">Library</button>
+            <button id="btnClosePlaylist" class="vlc-btn-icon" title="Close Playlist (Ctrl+L)">&times;</button>
+          </div>
         </div>
+
         <div class="playlist-table-head">
           <span class="col-num">#</span>
           <span class="col-title">Title</span>
@@ -602,8 +609,36 @@
         <button id="btnServerSave" class="vlc-dialog-btn btn-primary-vlc">Save & Apply</button>
       </div>
     </div>
+  <!-- 7. Saved Playlists Library Modal -->
+  <div id="savedPlaylistsModal" class="vlc-modal-backdrop hidden">
+    <div class="vlc-modal vlc-dialog-window" style="max-width: 520px;">
+      <div class="vlc-modal-header">
+        <div class="modal-title-left">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="8" y1="6" x2="21" y2="6"></line>
+            <line x1="8" y1="12" x2="21" y2="12"></line>
+            <line x1="8" y1="18" x2="21" y2="18"></line>
+            <line x1="3" y1="6" x2="3.01" y2="6"></line>
+            <line x1="3" y1="12" x2="3.01" y2="12"></line>
+            <line x1="3" y1="18" x2="3.01" y2="18"></line>
+          </svg>
+          <span>Saved Playlists Library</span>
+        </div>
+        <button id="btnSavedPlaylistsClose" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px; max-height: 380px; overflow-y: auto;">
+        <div id="savedPlaylistsList" class="saved-playlists-list">
+          <p style="color: #888; font-size: 13px; text-align: center; margin: 20px 0;">Loading playlists...</p>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; color: #888;">Persistent SQLite library (data/playlists.db)</span>
+        <button id="btnSavedPlaylistsDismiss" class="vlc-dialog-btn">Close</button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
+
 </body>
 </html>

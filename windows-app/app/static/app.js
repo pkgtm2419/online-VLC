@@ -681,6 +681,156 @@ document.addEventListener('DOMContentLoaded', () => {
   menuNext.addEventListener('click', playNextTrack);
   menuPrev.addEventListener('click', playPrevTrack);
 
+  // ==========================================
+  // SQLITE PERSISTENT PLAYLIST LIBRARY UI
+  // ==========================================
+  const btnSaveCurrentPlaylist = document.getElementById('btnSaveCurrentPlaylist');
+  const btnOpenSavedPlaylists = document.getElementById('btnOpenSavedPlaylists');
+  const menuSavedPlaylists = document.getElementById('menuSavedPlaylists');
+  const savedPlaylistsModal = document.getElementById('savedPlaylistsModal');
+  const btnSavedPlaylistsClose = document.getElementById('btnSavedPlaylistsClose');
+  const btnSavedPlaylistsDismiss = document.getElementById('btnSavedPlaylistsDismiss');
+  const savedPlaylistsList = document.getElementById('savedPlaylistsList');
+
+  async function saveCurrentPlaylistToLibrary() {
+    if (!currentPlaylist || currentPlaylist.length === 0) {
+      showOsd('No active playlist to save');
+      return;
+    }
+    const defaultTitle = playlistTitle.textContent !== 'Playlist' ? playlistTitle.textContent : `Playlist (${new Date().toLocaleDateString()})`;
+    const title = prompt('Enter a name for this playlist:', defaultTitle);
+    if (!title || !title.trim()) return;
+
+    try {
+      const res = await fetch(API_BASE + '/api/playlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim() })
+      });
+      if (!res.ok) throw new Error('Could not create playlist');
+      const plData = await res.json();
+      const plId = plData.id;
+
+      for (let i = 0; i < currentPlaylist.length; i++) {
+        const item = currentPlaylist[i];
+        await fetch(`${API_BASE}/api/playlists/${plId}/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: item.url,
+            title: item.title || `Track ${i + 1}`,
+            duration: item.duration || 0,
+            duration_str: item.duration_str || '--:--',
+            position: i
+          })
+        });
+      }
+      showOsd(`Saved "${title.trim()}" to library!`);
+    } catch (err) {
+      showOsd('Error saving playlist to library');
+    }
+  }
+
+  btnSaveCurrentPlaylist?.addEventListener('click', saveCurrentPlaylistToLibrary);
+
+  async function openSavedPlaylistsLibrary() {
+    savedPlaylistsModal?.classList.remove('hidden');
+    if (!savedPlaylistsList) return;
+    savedPlaylistsList.innerHTML = '<p style="color: #888; font-size: 13px; text-align: center; margin: 20px 0;">Loading playlists...</p>';
+
+    try {
+      const res = await fetch(API_BASE + '/api/playlists');
+      if (!res.ok) throw new Error('Could not fetch playlists');
+      const data = await res.json();
+      const playlists = data.playlists || [];
+
+      if (playlists.length === 0) {
+        savedPlaylistsList.innerHTML = '<p style="color: #888; font-size: 13px; text-align: center; margin: 20px 0;">No saved playlists yet. Click "Save" in the playlist drawer to add one.</p>';
+        return;
+      }
+
+      savedPlaylistsList.innerHTML = '';
+      playlists.forEach(pl => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; margin-bottom: 6px; background: #222; border-radius: 4px; border: 1px solid #333;';
+        
+        const infoCol = document.createElement('div');
+        infoCol.style.cssText = 'display: flex; flex-direction: column; gap: 2px; overflow: hidden;';
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.style.cssText = 'color: #ff8800; font-weight: bold; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;';
+        titleSpan.textContent = pl.title;
+        
+        const metaSpan = document.createElement('span');
+        metaSpan.style.cssText = 'color: #888; font-size: 11px;';
+        metaSpan.textContent = `${pl.item_count} items • ${new Date(pl.created_at).toLocaleDateString()}`;
+        
+        infoCol.appendChild(titleSpan);
+        infoCol.appendChild(metaSpan);
+
+        const actionsCol = document.createElement('div');
+        actionsCol.style.cssText = 'display: flex; gap: 6px; align-items: center; flex-shrink: 0;';
+
+        const btnLoad = document.createElement('button');
+        btnLoad.className = 'vlc-dialog-btn btn-primary-vlc';
+        btnLoad.style.cssText = 'padding: 4px 10px; font-size: 11px;';
+        btnLoad.textContent = 'Load & Play';
+        btnLoad.addEventListener('click', async () => {
+          try {
+            const detailRes = await fetch(`${API_BASE}/api/playlists/${pl.id}`);
+            if (!detailRes.ok) throw new Error('Failed to load playlist');
+            const detailData = await detailRes.json();
+            const formatted = {
+              success: true,
+              is_playlist: true,
+              playlist_title: detailData.title,
+              total_tracks: detailData.items.length,
+              entries: detailData.items.map((it, idx) => ({
+                index: idx,
+                id: String(it.id),
+                title: it.title,
+                duration_str: it.duration_str || '--:--',
+                url: it.url
+              }))
+            };
+            savedPlaylistsModal?.classList.add('hidden');
+            setupPlaylist(formatted);
+          } catch (e) {
+            alert('Could not load playlist: ' + e.message);
+          }
+        });
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'vlc-dialog-btn';
+        btnDelete.style.cssText = 'padding: 4px 8px; font-size: 11px; color: #ff4444;';
+        btnDelete.textContent = 'Delete';
+        btnDelete.addEventListener('click', async () => {
+          if (!confirm(`Delete playlist "${pl.title}"?`)) return;
+          try {
+            await fetch(`${API_BASE}/api/playlists/${pl.id}`, { method: 'DELETE' });
+            openSavedPlaylistsLibrary();
+          } catch (e) {}
+        });
+
+        actionsCol.appendChild(btnLoad);
+        actionsCol.appendChild(btnDelete);
+
+        row.appendChild(infoCol);
+        row.appendChild(actionsCol);
+        savedPlaylistsList.appendChild(row);
+      });
+
+    } catch (err) {
+      savedPlaylistsList.innerHTML = '<p style="color: #ff5555; font-size: 13px; text-align: center; margin: 20px 0;">Error loading playlists from backend server.</p>';
+    }
+  }
+
+  btnOpenSavedPlaylists?.addEventListener('click', openSavedPlaylistsLibrary);
+  menuSavedPlaylists?.addEventListener('click', openSavedPlaylistsLibrary);
+  btnSavedPlaylistsClose?.addEventListener('click', () => savedPlaylistsModal?.classList.add('hidden'));
+  btnSavedPlaylistsDismiss?.addEventListener('click', () => savedPlaylistsModal?.classList.add('hidden'));
+
+
   videoPlayer.addEventListener('ended', () => {
     if (loopMode === 'one') {
       seekToTime(0);
