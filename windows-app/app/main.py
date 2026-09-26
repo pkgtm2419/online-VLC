@@ -181,8 +181,7 @@ async def extract_url(req: ExtractRequest):
 
     info = extract_video_info(url)
 
-    
-    if not info.get("success") and not info.get("qualities") and not info.get("entries"):
+    if not info.get("success") and not info.get("qualities") and not info.get("entries") and not info.get("embedded_sources"):
         raise HTTPException(status_code=400, detail=info.get("error", "Failed to extract video."))
 
     # Generate convenient streaming endpoints for each quality
@@ -204,6 +203,12 @@ async def extract_url(req: ExtractRequest):
             q["play_url"] = f"/api/stream/direct?url={encoded_v}"
             q["raw_url"] = v_url
 
+    # For embedded sources, ensure stream proxy URLs are available for any html5 streams
+    for es in info.get("embedded_sources", []):
+        if es.get("type") == "html5_video" and es.get("url"):
+            encoded_v = urllib.parse.quote(es["url"], safe="")
+            es["play_url"] = f"/api/stream/direct?url={encoded_v}"
+
     # Save to history automatically
     history = load_history()
     # Filter out if already in history
@@ -211,7 +216,7 @@ async def extract_url(req: ExtractRequest):
     history.insert(0, {
         "url": url,
         "title": info.get("title", "Video"),
-        "uploader": info.get("uploader", "Web"),
+        "uploader": info.get("uploader", "Web Embedded" if info.get("is_embedded_page") else "Web"),
         "duration_str": info.get("duration_str", ""),
         "thumbnail": info.get("thumbnail"),
         "timestamp": os.path.getmtime(HISTORY_FILE) if HISTORY_FILE.exists() else 0

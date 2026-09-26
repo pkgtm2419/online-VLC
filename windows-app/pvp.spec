@@ -14,7 +14,8 @@ hiddenimports = (
     collect_submodules('yt_dlp') +
     collect_submodules('starlette') +
     collect_submodules('pydantic') +
-    ['pystray', 'PIL', 'sqlite3']
+    collect_submodules('bs4') +
+    ['pystray', 'PIL', 'sqlite3', 'soupsieve']
 )
 
 

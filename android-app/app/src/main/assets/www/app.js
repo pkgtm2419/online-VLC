@@ -126,6 +126,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnResumeStart = document.getElementById('btnResumeStart');
   const btnResumeCancel = document.getElementById('btnResumeCancel');
 
+  // DOM: Embedded Videos Modal Dialog
+  const embeddedOptionsModal = document.getElementById('embeddedOptionsModal');
+  const embeddedModalTitle = document.getElementById('embeddedModalTitle');
+  const embeddedModalDesc = document.getElementById('embeddedModalDesc');
+  const embeddedModalCount = document.getElementById('embeddedModalCount');
+  const embeddedSourcesList = document.getElementById('embeddedSourcesList');
+  const btnEmbeddedModalClose = document.getElementById('btnEmbeddedModalClose');
+  const btnEmbeddedModalCancel = document.getElementById('btnEmbeddedModalCancel');
+
   // Subtitle custom loader controls
   const audioTracksList = document.getElementById('audioTracksList');
   const subtitleTracksList = document.getElementById('subtitleTracksList');
@@ -342,6 +351,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.handleAndroidBack = function() {
+    // If embedded options modal is open, close it
+    if (embeddedOptionsModal && !embeddedOptionsModal.classList.contains('hidden')) {
+      closeEmbeddedModal();
+      triggerHaptic();
+      return true;
+    }
     // If resume modal is open, close it
     if (resumeModal && !resumeModal.classList.contains('hidden')) {
       closeResumeModal();
@@ -495,6 +510,142 @@ document.addEventListener('DOMContentLoaded', () => {
     const queryMatch = str.match(/[?&]v=([a-zA-Z0-9_-]{11})/i);
     if (queryMatch) return queryMatch[1];
     return null;
+  }
+
+  function extractEmbeddedVideosFromHtml(html, pageUrl) {
+    if (!html || html.length < 50) return null;
+
+    // Page title
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : 'Embedded Video';
+
+    const embeddedSources = [];
+    const seenKeys = new Set();
+
+    // 1. YouTube embeds
+    const ytMatches = html.matchAll(/<iframe[^>]+src=['"](?:https?:)?\/\/(?:www\.)?(?:youtube(?:-nocookie)?\.com\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{11})[^'"]*['"][^>]*>/gi);
+    for (const m of ytMatches) {
+      const videoId = m[1];
+      if (!seenKeys.has(videoId)) {
+        seenKeys.add(videoId);
+        embeddedSources.push({
+          type: 'youtube_embed',
+          video_id: videoId,
+          title: `YouTube Video (${videoId})`,
+          url: `https://www.youtube.com/watch?v=${videoId}`,
+          source: 'YouTube (embedded)',
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+        });
+      }
+    }
+
+    // 2. Vimeo embeds
+    const vimeoMatches = html.matchAll(/<iframe[^>]+src=['"](?:https?:)?\/\/player\.vimeo\.com\/video\/(\d+)[^'"]*['"][^>]*>/gi);
+    for (const m of vimeoMatches) {
+      const videoId = m[1];
+      const key = `vimeo_${videoId}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        embeddedSources.push({
+          type: 'vimeo_embed',
+          video_id: videoId,
+          title: `Vimeo Video (${videoId})`,
+          url: `https://vimeo.com/${videoId}`,
+          source: 'Vimeo (embedded)'
+        });
+      }
+    }
+
+    // 3. Dailymotion embeds
+    const dmMatches = html.matchAll(/<iframe[^>]+src=['"](?:https?:)?\/\/(?:www\.)?dailymotion\.com\/embed\/video\/([a-zA-Z0-9]+)[^'"]*['"][^>]*>/gi);
+    for (const m of dmMatches) {
+      const videoId = m[1];
+      const key = `dm_${videoId}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        embeddedSources.push({
+          type: 'dailymotion_embed',
+          video_id: videoId,
+          title: `Dailymotion Video (${videoId})`,
+          url: `https://www.dailymotion.com/video/${videoId}`,
+          source: 'Dailymotion (embedded)'
+        });
+      }
+    }
+
+    // 4. Streamable embeds
+    const stMatches = html.matchAll(/<iframe[^>]+src=['"](?:https?:)?\/\/(?:www\.)?streamable\.com\/(?:e|o)\/([a-zA-Z0-9]+)[^'"]*['"][^>]*>/gi);
+    for (const m of stMatches) {
+      const videoId = m[1];
+      const key = `st_${videoId}`;
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        embeddedSources.push({
+          type: 'streamable_embed',
+          video_id: videoId,
+          title: `Streamable Video (${videoId})`,
+          url: `https://streamable.com/${videoId}`,
+          source: 'Streamable (embedded)'
+        });
+      }
+    }
+
+    // 5. HTML5 <video> / <source> elements & streams (.m3u8, .mp4, .webm)
+    const mediaMatches = html.matchAll(/<(?:video|source)[^>]+src=['"]([^'"]+)['"]/gi);
+    for (const m of mediaMatches) {
+      let src = m[1].trim();
+      if (/\.(m3u8|mp4|webm|mkv|mov)($|\?)/i.test(src)) {
+        try {
+          src = new URL(src, pageUrl).href;
+        } catch (_) {}
+        if (!seenKeys.has(src) && src.startsWith('http')) {
+          seenKeys.add(src);
+          const isHls = /\.m3u8($|\?)/i.test(src);
+          const fileName = src.split('?')[0].split('/').pop() || 'Video Stream';
+          embeddedSources.push({
+            type: 'html5_video',
+            url: src,
+            title: decodeURIComponent(fileName),
+            source: 'HTML5 ' + (isHls ? 'HLS (.m3u8)' : '<video>'),
+            is_hls: isHls
+          });
+        }
+      }
+    }
+
+    // 6. Generic video iframes (custom players)
+    const ifrMatches = html.matchAll(/<iframe[^>]+src=['"]([^'"]+)['"][^>]*>/gi);
+    for (const m of ifrMatches) {
+      let ifrSrc = m[1].trim();
+      if (!ifrSrc || ifrSrc.startsWith('javascript:') || ifrSrc.startsWith('about:')) continue;
+      if (/doubleclick|googleads|googletagmanager|facebook\.com\/plugins|twitter\.com\/widgets|recaptcha|analytics/i.test(ifrSrc)) continue;
+      if (/youtube|youtu\.be|vimeo|dailymotion|streamable/i.test(ifrSrc)) continue;
+      if (/video|stream|play|player|embed|\.m3u8|\.mp4/i.test(ifrSrc)) {
+        try {
+          ifrSrc = new URL(ifrSrc, pageUrl).href;
+        } catch (_) {}
+        if (!seenKeys.has(ifrSrc) && ifrSrc.startsWith('http')) {
+          seenKeys.add(ifrSrc);
+          embeddedSources.push({
+            type: 'generic_embed',
+            url: ifrSrc,
+            embed_url: ifrSrc,
+            title: 'Embedded Web Player',
+            source: 'Generic Embed'
+          });
+        }
+      }
+    }
+
+    if (embeddedSources.length === 0) return null;
+
+    return {
+      success: true,
+      is_embedded_page: true,
+      title: title,
+      source_type: 'embedded_video',
+      embedded_sources: embeddedSources
+    };
   }
 
   function resolveMediaClientSide(url, fallbackTitle) {
@@ -710,11 +861,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (res.ok) {
             const data = await res.json();
-            if (data && (data.success || data.qualities?.length)) {
+            if (data && (data.success || data.qualities?.length || data.embedded_sources?.length || data.is_embedded_page)) {
               finalData = data;
             }
           }
         } catch (_) {}
+      }
+
+      // Check if LAN server returned embedded page
+      if (finalData && finalData.is_embedded_page && finalData.embedded_sources?.length) {
+        showEmbeddedOptionsModal(finalData);
+        setHomeLoading(false);
+        return;
+      }
+
+      // Check if this is a known direct media stream or service
+      const isDirectMediaOrKnownService = extractYouTubeId(rawUrl) ||
+        /mega\.nz\/(?:file|embed)\/|t\.me\/|drive\.google\.com|dropbox\.com|vimeo\.com|dailymotion\.com|streamable\.com|\.(m3u8|mp4|webm|mov|mkv|ogg|mp3|flv|avi)($|\?)/i.test(rawUrl);
+
+      // If NOT a known direct service/file, fetch webpage and extract embedded videos!
+      if (!finalData && !isDirectMediaOrKnownService && (rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) {
+        let pageHtml = null;
+        if (window.PVPNative && typeof window.PVPNative.fetchUrlHtml === 'function') {
+          try {
+            pageHtml = window.PVPNative.fetchUrlHtml(rawUrl);
+          } catch (_) {}
+        }
+        if (!pageHtml) {
+          try {
+            const res = await fetch(rawUrl);
+            if (res.ok) pageHtml = await res.text();
+          } catch (_) {}
+        }
+
+        if (pageHtml) {
+          const embeddedResult = extractEmbeddedVideosFromHtml(pageHtml, rawUrl);
+          if (embeddedResult && embeddedResult.embedded_sources?.length) {
+            showEmbeddedOptionsModal(embeddedResult);
+            setHomeLoading(false);
+            return;
+          }
+        }
       }
 
       // 2. Client-side fallback resolution
@@ -723,7 +910,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (!finalData) {
-        throw new Error('Unsupported video link. Enter a direct stream (.mp4, .m3u8), YouTube, or Vimeo URL.');
+        throw new Error('Unsupported video link. Enter a direct stream (.mp4, .m3u8), YouTube, Vimeo, or webpage with embedded video.');
       }
 
       currentPlayingUrl = rawUrl;
@@ -1715,6 +1902,138 @@ document.addEventListener('DOMContentLoaded', () => {
   function closeResumeModal() {
     resumeModal.classList.add('hidden');
     pendingResumeItem = null;
+  }
+
+  // ==========================================
+  // EMBEDDED VIDEOS MODAL
+  // ==========================================
+  function closeEmbeddedModal() {
+    embeddedOptionsModal?.classList.add('hidden');
+  }
+
+  btnEmbeddedModalClose?.addEventListener('click', () => {
+    triggerHaptic();
+    closeEmbeddedModal();
+  });
+
+  btnEmbeddedModalCancel?.addEventListener('click', () => {
+    triggerHaptic();
+    closeEmbeddedModal();
+  });
+
+  embeddedOptionsModal?.addEventListener('click', (e) => {
+    if (e.target === embeddedOptionsModal) {
+      triggerHaptic();
+      closeEmbeddedModal();
+    }
+  });
+
+  function showEmbeddedOptionsModal(data) {
+    if (!embeddedOptionsModal || !embeddedSourcesList) return;
+    const sources = data.embedded_sources || [];
+    if (embeddedModalTitle) {
+      embeddedModalTitle.textContent = data.title ? `Videos: ${data.title}` : 'Embedded Videos';
+    }
+    if (embeddedModalCount) {
+      embeddedModalCount.textContent = `${sources.length} video source${sources.length === 1 ? '' : 's'}`;
+    }
+    embeddedSourcesList.innerHTML = '';
+
+    sources.forEach((src) => {
+      const item = document.createElement('div');
+      item.className = 'embedded-source-item';
+
+      let badgeClass = 'badge-generic';
+      let badgeLabel = 'EMBED';
+      if (src.type === 'youtube_embed') {
+        badgeClass = 'badge-youtube';
+        badgeLabel = 'YouTube';
+      } else if (src.type === 'vimeo_embed') {
+        badgeClass = 'badge-vimeo';
+        badgeLabel = 'Vimeo';
+      } else if (src.type === 'dailymotion_embed') {
+        badgeClass = 'badge-dailymotion';
+        badgeLabel = 'Dailymotion';
+      } else if (src.type === 'streamable_embed') {
+        badgeClass = 'badge-generic';
+        badgeLabel = 'Streamable';
+      } else if (src.type === 'html5_video') {
+        badgeClass = 'badge-html5';
+        badgeLabel = src.is_hls ? 'HLS' : 'HTML5';
+      }
+
+      item.innerHTML = `
+        <div class="embedded-source-info">
+          <div class="embedded-source-header">
+            <span class="embedded-source-badge ${badgeClass}">${badgeLabel}</span>
+            <span class="embedded-source-title" title="${escapeHtml(src.title || src.source)}">${escapeHtml(src.title || src.source)}</span>
+          </div>
+          <span class="embedded-source-url" title="${escapeHtml(src.url || '')}">${escapeHtml(src.url || '')}</span>
+        </div>
+        <button class="embedded-play-btn" type="button">▶ Play</button>
+      `;
+
+      item.addEventListener('click', () => {
+        closeEmbeddedModal();
+        playEmbeddedSource(src);
+      });
+
+      embeddedSourcesList.appendChild(item);
+    });
+
+    embeddedOptionsModal.classList.remove('hidden');
+  }
+
+  function playEmbeddedSource(src) {
+    if (!src) return;
+    triggerHaptic();
+    if (src.type === 'youtube_embed' && src.url) {
+      handleStreamSubmit(src.url);
+    } else if (src.type === 'vimeo_embed' && src.url) {
+      handleStreamSubmit(src.url);
+    } else if (src.type === 'dailymotion_embed' && src.url) {
+      handleStreamSubmit(src.url);
+    } else if (src.type === 'streamable_embed' && src.url) {
+      handleStreamSubmit(src.url);
+    } else if (src.type === 'html5_video' && src.url) {
+      const isHls = src.is_hls || src.url.includes('.m3u8');
+      const mediaData = {
+        success: true,
+        title: src.title || 'HTML5 Video',
+        qualities: [{
+          label: isHls ? 'HLS Master' : 'Direct Stream',
+          type: 'direct',
+          video_url: src.url,
+          is_hls: isHls
+        }],
+        default_quality_index: 0
+      };
+      currentPlayingUrl = src.url;
+      currentPlayingTitle = mediaData.title;
+      saveToHistory(src.url, currentPlayingTitle, 0);
+      switchView('player');
+      loadMedia(mediaData, 0);
+    } else if (src.type === 'generic_embed') {
+      const embedTarget = src.embed_url || src.url;
+      const mediaData = {
+        success: true,
+        title: src.title || 'Embedded Player',
+        is_embed_fallback: true,
+        qualities: [{
+          label: 'Embed Player',
+          type: 'embed',
+          video_url: embedTarget
+        }],
+        default_quality_index: 0
+      };
+      currentPlayingUrl = embedTarget;
+      currentPlayingTitle = mediaData.title;
+      saveToHistory(embedTarget, currentPlayingTitle, 0);
+      switchView('player');
+      loadMedia(mediaData, 0);
+    } else if (src.url) {
+      handleStreamSubmit(src.url);
+    }
   }
 
   // ==========================================

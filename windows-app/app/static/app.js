@@ -487,7 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (res.ok) {
           const data = await res.json();
-          if (data && (data.success || data.qualities?.length || data.entries?.length)) {
+          if (data && (data.success || data.qualities?.length || data.entries?.length || data.embedded_sources?.length || data.is_embedded_page)) {
             finalData = data;
           }
         }
@@ -497,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Check if YouTube needs embed fallback
       const isYouTubeUrl = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([a-zA-Z0-9_-]{11})/.exec(rawUrl);
-      if (finalData && isYouTubeUrl && (!finalData.qualities?.length || (finalData.qualities?.length === 1 && finalData.qualities[0].label === 'Direct'))) {
+      if (finalData && !finalData.is_embedded_page && isYouTubeUrl && (!finalData.qualities?.length || (finalData.qualities?.length === 1 && finalData.qualities[0].label === 'Direct'))) {
         finalData = null; // Let client-side embed handle YouTube cleanly
       }
 
@@ -512,6 +512,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // Close modal immediately upon valid response
       closeStreamModal();
+
+      // Check for website embedded videos (multiple or single embedded iframe/video)
+      if (finalData.is_embedded_page && finalData.embedded_sources && finalData.embedded_sources.length > 0) {
+        showEmbeddedOptionsModal(finalData);
+        return;
+      }
 
       if (finalData.is_playlist && finalData.entries && finalData.entries.length > 0) {
         // Handle Playlist
@@ -829,6 +835,150 @@ document.addEventListener('DOMContentLoaded', () => {
   menuSavedPlaylists?.addEventListener('click', openSavedPlaylistsLibrary);
   btnSavedPlaylistsClose?.addEventListener('click', () => savedPlaylistsModal?.classList.add('hidden'));
   btnSavedPlaylistsDismiss?.addEventListener('click', () => savedPlaylistsModal?.classList.add('hidden'));
+
+  // ==========================================
+  // EMBEDDED VIDEOS SELECTION MODAL
+  // ==========================================
+  const embeddedOptionsModal = document.getElementById('embeddedOptionsModal');
+  const embeddedModalTitle = document.getElementById('embeddedModalTitle');
+  const embeddedModalDesc = document.getElementById('embeddedModalDesc');
+  const embeddedModalCount = document.getElementById('embeddedModalCount');
+  const embeddedSourcesList = document.getElementById('embeddedSourcesList');
+  const btnEmbeddedModalClose = document.getElementById('btnEmbeddedModalClose');
+  const btnEmbeddedModalCancel = document.getElementById('btnEmbeddedModalCancel');
+
+  function closeEmbeddedModal() {
+    embeddedOptionsModal?.classList.add('hidden');
+  }
+
+  btnEmbeddedModalClose?.addEventListener('click', closeEmbeddedModal);
+  btnEmbeddedModalCancel?.addEventListener('click', closeEmbeddedModal);
+  embeddedOptionsModal?.addEventListener('click', (e) => {
+    if (e.target === embeddedOptionsModal) closeEmbeddedModal();
+  });
+
+  function showEmbeddedOptionsModal(data) {
+    if (!embeddedOptionsModal || !embeddedSourcesList) return;
+    const sources = data.embedded_sources || [];
+    if (embeddedModalTitle) {
+      embeddedModalTitle.textContent = data.title ? `Embedded Videos: ${data.title}` : 'Embedded Videos Detected';
+    }
+    if (embeddedModalCount) {
+      embeddedModalCount.textContent = `${sources.length} video source${sources.length === 1 ? '' : 's'} detected`;
+    }
+    embeddedSourcesList.innerHTML = '';
+
+    sources.forEach((src, idx) => {
+      const item = document.createElement('div');
+      item.className = 'embedded-source-item';
+
+      let badgeClass = 'badge-generic';
+      let badgeLabel = 'EMBED';
+      if (src.type === 'youtube_embed') {
+        badgeClass = 'badge-youtube';
+        badgeLabel = 'YouTube';
+      } else if (src.type === 'vimeo_embed') {
+        badgeClass = 'badge-vimeo';
+        badgeLabel = 'Vimeo';
+      } else if (src.type === 'dailymotion_embed') {
+        badgeClass = 'badge-dailymotion';
+        badgeLabel = 'Dailymotion';
+      } else if (src.type === 'streamable_embed') {
+        badgeClass = 'badge-generic';
+        badgeLabel = 'Streamable';
+      } else if (src.type === 'html5_video') {
+        badgeClass = 'badge-html5';
+        badgeLabel = src.is_hls ? 'HLS Stream' : 'HTML5 Video';
+      }
+
+      item.innerHTML = `
+        <div class="embedded-source-info">
+          <div class="embedded-source-header">
+            <span class="embedded-source-badge ${badgeClass}">${badgeLabel}</span>
+            <span class="embedded-source-title" title="${src.title || src.source}">${src.title || src.source}</span>
+          </div>
+          <span class="embedded-source-url" title="${src.url || ''}">${src.url || ''}</span>
+        </div>
+        <button class="embedded-play-btn" type="button">▶ Play</button>
+      `;
+
+      item.addEventListener('click', () => {
+        closeEmbeddedModal();
+        playEmbeddedSource(src);
+      });
+
+      embeddedSourcesList.appendChild(item);
+    });
+
+    embeddedOptionsModal.classList.remove('hidden');
+  }
+
+  function playEmbeddedSource(src) {
+    if (!src) return;
+    if (src.type === 'youtube_embed' && src.url) {
+      startStream(src.url);
+    } else if (src.type === 'vimeo_embed' && src.url) {
+      startStream(src.url);
+    } else if (src.type === 'dailymotion_embed' && src.url) {
+      startStream(src.url);
+    } else if (src.type === 'streamable_embed' && src.url) {
+      startStream(src.url);
+    } else if (src.type === 'html5_video' && src.url) {
+      const isHls = src.is_hls || src.url.includes('.m3u8');
+      const videoData = {
+        success: true,
+        title: src.title || 'HTML5 Stream',
+        duration_str: '--:--',
+        qualities: [{
+          label: isHls ? 'Master HLS (Auto)' : 'Direct Stream',
+          type: 'direct',
+          video_url: src.url,
+          play_url: src.play_url || `${API_BASE}/api/stream/direct?url=${encodeURIComponent(src.url)}`,
+          raw_url: src.url,
+          is_hls: isHls
+        }],
+        default_quality_index: 0
+      };
+      currentPlaylist = [{
+        index: 0,
+        title: videoData.title,
+        duration_str: '--:--',
+        url: src.url,
+        data: videoData
+      }];
+      currentTrackIndex = 0;
+      renderPlaylistUI();
+      loadVideoData(videoData);
+    } else if (src.type === 'generic_embed') {
+      const embedTarget = src.embed_url || src.url;
+      const videoData = {
+        success: true,
+        title: src.title || 'Embedded Player',
+        duration_str: '--:--',
+        qualities: [{
+          label: 'Embed Player',
+          type: 'embed',
+          video_url: embedTarget,
+          play_url: embedTarget,
+          raw_url: embedTarget,
+          is_hls: false
+        }],
+        default_quality_index: 0
+      };
+      currentPlaylist = [{
+        index: 0,
+        title: videoData.title,
+        duration_str: '--:--',
+        url: embedTarget,
+        data: videoData
+      }];
+      currentTrackIndex = 0;
+      renderPlaylistUI();
+      loadVideoData(videoData);
+    } else if (src.url) {
+      startStream(src.url);
+    }
+  }
 
 
   videoPlayer.addEventListener('ended', () => {

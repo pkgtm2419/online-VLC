@@ -99,6 +99,7 @@ online-VLC/
 - **🛡️ 100% Ad-Free**: Extracts pure media streams from CDNs, completely bypassing pre-rolls, mid-rolls, pop-ups, and trackers.
 - **🔒 Zero Cloud Interaction**: All operations run locally on your hardware. No external tracking, no cloud telemetry.
 - **🌐 Universal Video Source Support**:
+  - **Website Embedded Videos**: Paste any webpage, article, or blog containing embedded video players (YouTube, Vimeo, Dailymotion, Streamable, HTML5 `<video>`, or custom iframe players). Displays a sleek VLC-styled selection modal allowing you to choose and play any detected stream.
   - **YouTube**: Videos, Shorts, Live streams, and Playlists (with embed touch player).
   - **Telegram**: Public message and channel video links (`t.me/channel/123`).
   - **Mega.nz**: Shared file links (`mega.nz/file/...`).

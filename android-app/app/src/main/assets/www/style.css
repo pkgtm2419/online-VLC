@@ -1817,6 +1817,123 @@ input:checked + .slider-toggle:before {
 }
 
 /* ==========================================================================
+   EMBEDDED VIDEO OPTIONS MODAL (ANDROID MOBILE)
+   ========================================================================== */
+.embedded-sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.embedded-source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(255, 136, 0, 0.08);
+  border: 1px solid rgba(255, 136, 0, 0.22);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.embedded-source-item:active {
+  background: rgba(255, 136, 0, 0.22);
+  border-color: #ff8800;
+  transform: scale(0.99);
+}
+
+.embedded-source-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.embedded-source-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.embedded-source-badge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 3px;
+  background: #ff8800;
+  color: #111;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.embedded-source-badge.badge-youtube {
+  background: #ef4444;
+  color: #fff;
+}
+
+.embedded-source-badge.badge-vimeo {
+  background: #0284c7;
+  color: #fff;
+}
+
+.embedded-source-badge.badge-dailymotion {
+  background: #2563eb;
+  color: #fff;
+}
+
+.embedded-source-badge.badge-html5 {
+  background: #10b981;
+  color: #000;
+}
+
+.embedded-source-badge.badge-generic {
+  background: #8b5cf6;
+  color: #fff;
+}
+
+.embedded-source-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.embedded-source-url {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.embedded-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: #ff8800;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.embedded-play-btn:active {
+  background: #ffa022;
+  transform: scale(0.96);
+}
+
+/* ==========================================================================
    UTILITY CLASSES
    ========================================================================== */
 .hidden {

@@ -6,3 +6,9 @@ fastapi
 yt-dlp
 httpx
 pydantic
+beautifulsoup4>=4.12.0
+
+# FFmpeg is OPTIONAL for audio+video muxing (PVP will work without it):
+# Windows: winget install Gyan.FFmpeg
+# Linux:   apt install ffmpeg
+# macOS:   brew install ffmpeg

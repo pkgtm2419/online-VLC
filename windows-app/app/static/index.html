@@ -638,6 +638,32 @@
     </div>
   </div>
 
+  <!-- 8. Embedded Videos Selection Modal -->
+  <div id="embeddedOptionsModal" class="vlc-modal-backdrop hidden">
+    <div class="vlc-modal vlc-dialog-window" style="max-width: 540px;">
+      <div class="vlc-modal-header">
+        <div class="modal-title-left">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+          <span id="embeddedModalTitle">Embedded Videos Detected</span>
+        </div>
+        <button id="btnEmbeddedModalClose" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px; max-height: 420px; overflow-y: auto;">
+        <p id="embeddedModalDesc" style="font-size: 13px; color: #ccc; margin-bottom: 14px; line-height: 1.4;">
+          Embedded videos detected on this webpage. Choose any video to stream:
+        </p>
+        <div id="embeddedSourcesList" class="embedded-sources-list"></div>
+      </div>
+      <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;">
+        <span id="embeddedModalCount" style="font-size: 11px; color: #888;">0 sources detected</span>
+        <button id="btnEmbeddedModalCancel" class="vlc-dialog-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <script src="app.js"></script>
 
 </body>

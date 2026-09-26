@@ -1313,3 +1313,123 @@ html, body {
   color: #ffffff;
 }
 
+/* ==========================================================================
+   Embedded Video Options Modal (VLC Theme)
+   ========================================================================== */
+.embedded-sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.embedded-source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 136, 0, 0.06);
+  border: 1px solid rgba(255, 136, 0, 0.2);
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.embedded-source-item:hover {
+  background: rgba(255, 136, 0, 0.16);
+  border-color: #ff8800;
+  transform: translateY(-1px);
+}
+
+.embedded-source-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.embedded-source-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.embedded-source-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: #ff8800;
+  color: #111;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.embedded-source-badge.badge-youtube {
+  background: #e50914;
+  color: #fff;
+}
+
+.embedded-source-badge.badge-vimeo {
+  background: #1ab7ea;
+  color: #fff;
+}
+
+.embedded-source-badge.badge-dailymotion {
+  background: #0066dc;
+  color: #fff;
+}
+
+.embedded-source-badge.badge-html5 {
+  background: #10b981;
+  color: #000;
+}
+
+.embedded-source-badge.badge-generic {
+  background: #a855f7;
+  color: #fff;
+}
+
+.embedded-source-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.embedded-source-url {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: monospace;
+}
+
+.embedded-play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ff8800;
+  color: #ffffff;
+  border: none;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.embedded-play-btn:hover {
+  background: #ffa022;
+  transform: scale(1.02);
+}
+
+

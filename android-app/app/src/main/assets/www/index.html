@@ -638,6 +638,30 @@
       </div>
     </div>
 
+    <!-- 7. Embedded Videos Selection Modal -->
+    <div id="embeddedOptionsModal" class="modal-dialog-backdrop hidden">
+      <div class="modal-dialog-card" style="max-width: 480px; width: 92%; max-height: 85vh; display: flex; flex-direction: column;">
+        <div class="modal-dialog-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ff8800" stroke-width="2">
+              <polygon points="23 7 16 12 23 17 23 7"></polygon>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            <h4 class="modal-dialog-title" id="embeddedModalTitle" style="margin: 0; font-size: 16px;">Embedded Videos</h4>
+          </div>
+          <button id="btnEmbeddedModalClose" class="sheet-close-btn" style="padding: 4px 8px; font-size: 18px;">&times;</button>
+        </div>
+        <p id="embeddedModalDesc" style="font-size: 12px; color: #aaa; margin-bottom: 12px;">
+          Videos were detected on this webpage. Tap any video to stream:
+        </p>
+        <div id="embeddedSourcesList" class="embedded-sources-list" style="overflow-y: auto; flex: 1; max-height: 50vh;"></div>
+        <div class="modal-dialog-buttons" style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <span id="embeddedModalCount" style="font-size: 11px; color: #888;">0 sources</span>
+          <button id="btnEmbeddedModalCancel" class="btn-dialog-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Hidden Subtitle File Input -->
     <input type="file" id="subFileInput" accept=".srt,.vtt,.ass,.ssa" class="hidden">
 

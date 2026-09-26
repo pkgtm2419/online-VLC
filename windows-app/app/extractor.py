@@ -332,6 +332,230 @@ def extract_streams_from_html(html: str) -> List[str]:
     return list(dict.fromkeys(streams))
 
 
+def extract_iframe_embedded_videos(url: str, html: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """
+    Extract embedded videos from <iframe> and <video> tags on any webpage.
+    Detects and handles:
+    - YouTube embeds (youtube.com/embed/, youtube-nocookie.com/embed/, youtu.be/)
+    - Vimeo embeds (player.vimeo.com/video/)
+    - Dailymotion embeds (dailymotion.com/embed/video/)
+    - Streamable embeds (streamable.com/e/, streamable.com/o/)
+    - Custom HTML5 <video> and <source> elements (.m3u8, .mp4, .webm, .mkv)
+    - Generic video player iframe sources
+    """
+    import ssl
+    import urllib.request
+    import urllib.parse
+
+    final_url = url
+    if not html:
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        }
+
+        try:
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, context=ctx, timeout=12) as resp:
+                html = resp.read().decode("utf-8", errors="ignore")
+                final_url = resp.geturl()
+        except Exception:
+            return None
+
+    if not html or len(html.strip()) < 50:
+        return None
+
+    # Page Title
+    title_match = re.search(r'<title[^>]*>([^<]+)</title>', html, re.I)
+    title = title_match.group(1).strip() if title_match else "Embedded Video"
+    title = re.sub(r'\s+', ' ', title)
+
+    # Thumbnail
+    thumb_match = re.search(
+        r'<meta[^>]+(?:property|name)=[\'"](?:og:image|twitter:image)[\'"][^>]+content=[\'"]([^\'"]+)[\'"]',
+        html, re.I
+    ) or re.search(
+        r'<meta[^>]+content=[\'"]([^\'"]+)[\'"][^>]+(?:property|name)=[\'"](?:og:image|twitter:image)[\'"]',
+        html, re.I
+    )
+    thumbnail = thumb_match.group(1) if thumb_match else None
+
+    embedded_sources = []
+    seen_keys = set()
+
+    # 1. YOUTUBE IFRAME & EMBEDS
+    youtube_matches = re.findall(
+        r'<iframe[^>]+src=[\'"](?:https?:)?//(?:www\.)?(?:youtube(?:-nocookie)?\.com/embed/|youtu\.be/)([a-zA-Z0-9_-]{11})[^\'"]*[\'"][^>]*>',
+        html, re.I
+    )
+    for video_id in youtube_matches:
+        if video_id not in seen_keys:
+            seen_keys.add(video_id)
+            embedded_sources.append({
+                "type": "youtube_embed",
+                "video_id": video_id,
+                "title": f"YouTube Video ({video_id})",
+                "url": f"https://www.youtube.com/watch?v={video_id}",
+                "embed_url": f"https://www.youtube-nocookie.com/embed/{video_id}?autoplay=1&rel=0&modestbranding=1",
+                "source": "YouTube (embedded)",
+                "thumbnail": f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
+            })
+
+    # 2. VIMEO IFRAME
+    vimeo_matches = re.findall(
+        r'<iframe[^>]+src=[\'"](?:https?:)?//player\.vimeo\.com/video/(\d+)[^\'"]*[\'"][^>]*>',
+        html, re.I
+    )
+    for video_id in vimeo_matches:
+        key = f"vimeo_{video_id}"
+        if key not in seen_keys:
+            seen_keys.add(key)
+            embedded_sources.append({
+                "type": "vimeo_embed",
+                "video_id": video_id,
+                "title": f"Vimeo Video ({video_id})",
+                "url": f"https://vimeo.com/{video_id}",
+                "embed_url": f"https://player.vimeo.com/video/{video_id}?autoplay=1",
+                "source": "Vimeo (embedded)",
+                "thumbnail": thumbnail
+            })
+
+    # 3. DAILYMOTION IFRAME
+    dailymotion_matches = re.findall(
+        r'<iframe[^>]+src=[\'"](?:https?:)?//(?:www\.)?dailymotion\.com/embed/video/([a-zA-Z0-9]+)[^\'"]*[\'"][^>]*>',
+        html, re.I
+    )
+    for video_id in dailymotion_matches:
+        key = f"dm_{video_id}"
+        if key not in seen_keys:
+            seen_keys.add(key)
+            embedded_sources.append({
+                "type": "dailymotion_embed",
+                "video_id": video_id,
+                "title": f"Dailymotion Video ({video_id})",
+                "url": f"https://www.dailymotion.com/video/{video_id}",
+                "embed_url": f"https://www.dailymotion.com/embed/video/{video_id}?autoplay=1",
+                "source": "Dailymotion (embedded)",
+                "thumbnail": thumbnail
+            })
+
+    # 4. STREAMABLE IFRAME
+    streamable_matches = re.findall(
+        r'<iframe[^>]+src=[\'"](?:https?:)?//(?:www\.)?streamable\.com/(?:e|o)/([a-zA-Z0-9]+)[^\'"]*[\'"][^>]*>',
+        html, re.I
+    )
+    for video_id in streamable_matches:
+        key = f"streamable_{video_id}"
+        if key not in seen_keys:
+            seen_keys.add(key)
+            embedded_sources.append({
+                "type": "streamable_embed",
+                "video_id": video_id,
+                "title": f"Streamable Video ({video_id})",
+                "url": f"https://streamable.com/{video_id}",
+                "embed_url": f"https://streamable.com/e/{video_id}?autoplay=1",
+                "source": "Streamable (embedded)",
+                "thumbnail": thumbnail
+            })
+
+    # 5. HTML5 <video> / <source> AND UNPACKED STREAMS
+    video_streams = extract_streams_from_html(html)
+    for stream_url in video_streams:
+        if stream_url.startswith('/'):
+            stream_url = urllib.parse.urljoin(final_url, stream_url)
+        if stream_url not in seen_keys and stream_url.startswith('http'):
+            seen_keys.add(stream_url)
+            clean_name = stream_url.split('?')[0].split('/')[-1] or "HTML5 Video Stream"
+            is_hls = '.m3u8' in stream_url
+            embedded_sources.append({
+                "type": "html5_video",
+                "url": stream_url,
+                "title": clean_name,
+                "source": "HTML5 " + ("HLS (.m3u8)" if is_hls else "<video>"),
+                "is_hls": is_hls,
+                "thumbnail": thumbnail
+            })
+
+    # 6. GENERIC VIDEO IFRAMES (custom video players)
+    all_iframes = re.findall(
+        r'<iframe[^>]+src=[\'"]([^\'"]+)[\'"][^>]*>',
+        html, re.I
+    )
+    for ifr in all_iframes:
+        ifr_clean = ifr.strip()
+        if not ifr_clean or ifr_clean.startswith('javascript:') or ifr_clean.startswith('about:'):
+            continue
+        # Skip tracking / ads / widgets
+        if any(ad in ifr_clean.lower() for ad in ['doubleclick', 'googleads', 'googletagmanager', 'facebook.com/plugins', 'twitter.com/widgets', 'recaptcha', 'disqus', 'analytics']):
+            continue
+        if any(known in ifr_clean.lower() for known in ['youtube', 'youtu.be', 'vimeo', 'dailymotion', 'streamable']):
+            continue
+
+        # Check if iframe is video-related
+        if any(kw in ifr_clean.lower() for kw in ['video', 'stream', 'play', 'player', 'embed', '.m3u8', '.mp4']):
+            resolved_ifr = urllib.parse.urljoin(final_url, ifr_clean)
+            if resolved_ifr not in seen_keys and resolved_ifr.startswith('http'):
+                seen_keys.add(resolved_ifr)
+                embedded_sources.append({
+                    "type": "generic_embed",
+                    "url": resolved_ifr,
+                    "embed_url": resolved_ifr,
+                    "title": "Embedded Player Stream",
+                    "source": "Generic Embed",
+                    "thumbnail": thumbnail
+                })
+
+    if not embedded_sources:
+        return None
+
+    # Pick the most prominent primary source
+    primary_source = next(
+        (s for s in embedded_sources if s["type"] in ["youtube_embed", "vimeo_embed", "html5_video"]),
+        embedded_sources[0]
+    )
+
+    # Build direct qualities for fallback/instant playback
+    qualities = []
+    if primary_source.get("type") == "html5_video" and primary_source.get("url"):
+        is_hls = primary_source.get("is_hls", False)
+        qualities.append({
+            "label": "Master HLS (Auto)" if is_hls else "Direct Stream",
+            "height": 1080,
+            "type": "direct",
+            "video_url": primary_source["url"],
+            "audio_url": None,
+            "is_hls": is_hls
+        })
+    elif primary_source.get("type") in ["youtube_embed", "vimeo_embed", "dailymotion_embed", "generic_embed"]:
+        embed_target = primary_source.get("embed_url") or primary_source.get("url")
+        qualities.append({
+            "label": f"Embed ({primary_source.get('source', 'Player')})",
+            "height": 1080,
+            "type": "embed",
+            "video_url": embed_target,
+            "audio_url": None,
+            "is_hls": False
+        })
+
+    return {
+        "success": True,
+        "is_playlist": False,
+        "title": title,
+        "thumbnail": thumbnail,
+        "webpage_url": final_url,
+        "source_type": "embedded_video",
+        "embedded_sources": embedded_sources,
+        "primary_source": primary_source,
+        "is_embedded_page": True,
+        "qualities": qualities,
+        "default_quality_index": 0
+    }
+
+
 def scrape_movie_webpage(url: str) -> Optional[Dict[str, Any]]:
     """
     Intelligent scraper for movie/anime streaming pages, WordPress DooPlay players,
@@ -839,6 +1063,11 @@ def extract_video_info(url: str, force_single: bool = False) -> Dict[str, Any]:
                     ],
                     "default_quality_index": 0
                 }
+
+        # Check for website embedded videos (iframe / HTML5 video)
+        embedded_info = extract_iframe_embedded_videos(cleaned_url)
+        if embedded_info:
+            return embedded_info
 
         # Final check: see if URL is an index page with media files
         idx_info = extract_playlist_from_index(cleaned_url)

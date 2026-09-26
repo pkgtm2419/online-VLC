@@ -8,6 +8,7 @@ All notable changes to the PVP (Personal Video Player) Windows desktop applicati
 - **Multi-Source Video Extraction**:
   - Telegram public links support (`t.me/<channel>/<msg_id>`).
   - Mega.nz shared files support (`mega.nz/file/...`).
+  - Website Embedded Video Support: Detects `<iframe>` elements (YouTube, Vimeo, Dailymotion, Streamable, generic embeds) and HTML5 `<video>` tags from any blog, article, or webpage, with an interactive VLC-styled selection modal.
   - Directory index page scraping: Auto-scans open Apache/Nginx web directories for media files (`.mp4`, `.webm`, `.mkv`, `.m3u8`, `.avi`, `.mov`) and auto-generates structured playlists.
   - Cloud storage direct streaming: Google Drive, Dropbox, and OneDrive link normalizers.
 - **SQLite Persistent Playlist Management**:
