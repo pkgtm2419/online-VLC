@@ -81,6 +81,14 @@ html, body {
   cursor: pointer;
 }
 
+.app-menubar-logo {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  object-fit: contain;
+  display: block;
+}
+
 .menu-item {
   position: relative;
   padding: 0 8px;
@@ -195,6 +203,15 @@ html, body {
 @keyframes gentlePulse {
   from { transform: scale(1); }
   to { transform: scale(1.03); }
+}
+
+.app-cone-poster {
+  width: 140px;
+  height: 140px;
+  border-radius: 28px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.6));
 }
 
 .cone-app-title {

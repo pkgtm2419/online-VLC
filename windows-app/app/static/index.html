@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PVP (Personal Video Player)</title>
   <meta name="referrer" content="no-referrer">
+  <link rel="icon" type="image/png" href="logo.png">
   <link rel="stylesheet" href="style.css">
   <script src="hls.min.js"></script>
 </head>
@@ -16,15 +17,9 @@
     <!-- 1. Top Menu Bar (VLC Style) -->
     <header class="vlc-menubar" id="vlcMenubar">
       <div class="menubar-left">
-        <!-- VLC Traffic Cone Icon -->
+        <!-- VLC App Logo Icon -->
         <div class="vlc-logo-icon" title="PVP - Personal Video Player">
-          <svg viewBox="0 0 100 100" width="18" height="18">
-            <path d="M50 5 L35 75 L65 75 Z" fill="#ff7f00" stroke="#cc6600" stroke-width="2"/>
-            <path d="M42 30 L38 48 L62 48 L58 30 Z" fill="#ffffff"/>
-            <path d="M37 54 L33 68 L67 68 L63 54 Z" fill="#ffffff"/>
-            <ellipse cx="50" cy="85" rx="36" ry="10" fill="#ff7f00" stroke="#cc6600" stroke-width="2"/>
-            <ellipse cx="50" cy="85" rx="28" ry="7" fill="#e65c00"/>
-          </svg>
+          <img src="logo.png" alt="PVP" class="app-menubar-logo">
         </div>
         <div class="menu-item" id="menuMedia">Media
           <div class="dropdown-menu">
@@ -146,13 +141,7 @@
       <!-- Idle State: VLC Traffic Cone Poster -->
       <div class="vlc-cone-screen" id="coneScreen">
         <div class="cone-graphic">
-          <svg viewBox="0 0 100 100" width="160" height="160">
-            <ellipse cx="50" cy="85" rx="42" ry="12" fill="#ff7f00" stroke="#cc5500" stroke-width="3"/>
-            <ellipse cx="50" cy="85" rx="32" ry="8" fill="#e65c00"/>
-            <path d="M50 8 L32 75 L68 75 Z" fill="#ff7f00" stroke="#cc5500" stroke-width="2.5"/>
-            <path d="M42 32 L37 50 L63 50 L58 32 Z" fill="#ffffff" stroke="#ddd" stroke-width="0.5"/>
-            <path d="M36 56 L31 70 L69 70 L64 56 Z" fill="#ffffff" stroke="#ddd" stroke-width="0.5"/>
-          </svg>
+          <img src="logo.png" alt="PVP" class="app-cone-poster">
         </div>
         <h2 class="cone-app-title">PVP media player</h2>
         <p class="cone-tagline">⚡ Direct Universal Streamer &bull; Zero Downloads &bull; 100% Ad-Free Playback</p>

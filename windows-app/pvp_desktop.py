@@ -83,8 +83,14 @@ def stop_server():
         server = None
 
 def create_image():
-    # Simple orange cone on dark background
-    image = Image.new('RGB', (64, 64), color=(30, 30, 30))
+    logo_path = os.path.join(base_dir, 'app', 'static', 'logo.png')
+    if os.path.exists(logo_path):
+        try:
+            return Image.open(logo_path)
+        except Exception:
+            pass
+    # Fallback orange cone on dark background
+    image = Image.new('RGBA', (64, 64), color=(30, 30, 30, 0))
     draw = ImageDraw.Draw(image)
     # Draw cone (orange triangle)
     draw.polygon([(32, 10), (10, 54), (54, 54)], fill=(255, 165, 0))
