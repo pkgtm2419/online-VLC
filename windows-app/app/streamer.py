@@ -30,11 +30,14 @@ def get_ffmpeg_path() -> Optional[str]:
         Path.cwd() / "ffmpeg.exe",
         Path.cwd() / "ffmpeg",
         Path(__file__).parent / "ffmpeg.exe",
-        Path(__file__).parent.parent / "ffmpeg.exe"
+        Path(__file__).parent.parent / "ffmpeg.exe",
+        Path(__file__).parent.parent / "bin" / "ffmpeg.exe",
+        Path(sys.executable).parent / "bin" / "ffmpeg.exe",
     ]
     if getattr(sys, 'frozen', False):
         candidates.append(Path(sys.executable).parent / "ffmpeg.exe")
         candidates.append(Path(getattr(sys, '_MEIPASS', '')) / "ffmpeg.exe")
+        candidates.append(Path(getattr(sys, '_MEIPASS', '')) / "bin" / "ffmpeg.exe")
     
     for c in candidates:
         if c.exists() and c.is_file():

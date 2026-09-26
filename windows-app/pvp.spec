@@ -9,26 +9,34 @@ base_dir = project_dir
 block_cipher = None
 
 hiddenimports = (
-    collect_submodules('fastapi') +
-    collect_submodules('uvicorn') +
     collect_submodules('yt_dlp') +
-    collect_submodules('starlette') +
-    collect_submodules('pydantic') +
     collect_submodules('bs4') +
-    ['pystray', 'PIL', 'sqlite3', 'soupsieve']
+    [
+        'PyQt6.QtWidgets', 'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.sip',
+        'vlc', 'sqlite3', 'PIL', 'soupsieve'
+    ]
 )
-
 
 datas = [
     (os.path.join(project_dir, 'app'), 'app'),
+    (os.path.join(project_dir, 'libvlc'), 'libvlc'),
 ]
 
 data_dir = os.path.join(project_dir, 'data')
 if os.path.exists(data_dir):
     datas.append((data_dir, 'data'))
 
+excludes = [
+    'PyQt6.QtSql', 'PyQt6.QtNetwork', 'PyQt6.QtQml', 'PyQt6.QtQuick',
+    'PyQt6.QtDesigner', 'PyQt6.QtBluetooth', 'PyQt6.QtNfc', 'PyQt6.QtPositioning',
+    'PyQt6.QtSensors', 'PyQt6.QtSerialPort', 'PyQt6.QtWebChannel', 'PyQt6.QtWebEngine',
+    'PyQt6.QtWebEngineCore', 'PyQt6.QtWebEngineWidgets', 'PyQt6.QtXml', 'PyQt6.QtPdf',
+    'PyQt6.QtTest', 'PyQt6.QtOpenGL', 'PyQt6.QtOpenGLWidgets', 'PyQt6.QtPrintSupport',
+    'fastapi', 'uvicorn', 'starlette'
+]
+
 a = Analysis(
-    [os.path.join(project_dir, 'pvp_desktop.py')],
+    [os.path.join(project_dir, 'pvp_player.py')],
     pathex=[project_dir],
     binaries=[],
     datas=datas,
@@ -36,7 +44,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=excludes,
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
