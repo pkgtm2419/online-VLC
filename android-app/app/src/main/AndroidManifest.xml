@@ -16,21 +16,20 @@
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="35">
 
+        <!-- 1. Dedicated Online Streaming Home Activity -->
         <activity
-            android:name=".MainActivity"
+            android:name=".ui.HomeActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
-            android:launchMode="singleTask"
-            android:screenOrientation="unspecified"
-            android:hardwareAccelerated="true"
-            android:theme="@style/Theme.PVP.Fullscreen">
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.PVP">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Handle video URLs from share menu -->
+            <!-- Handle video URLs from Android System Share Sheet -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -60,7 +59,17 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="pvp" />
             </intent-filter>
-
         </activity>
+
+        <!-- 2. Native VideoLAN LibVLC Video Player Activity -->
+        <activity
+            android:name=".player.VLCPlayerActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:screenOrientation="sensorLandscape"
+            android:hardwareAccelerated="true"
+            android:supportsPictureInPicture="true"
+            android:theme="@style/Theme.PVP.Fullscreen" />
+
     </application>
 </manifest>

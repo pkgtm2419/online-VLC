@@ -15,8 +15,8 @@ Choose your platform below to download the pre-built files directly from this re
 
 | Platform | Download Button | Package Type | Quick Instructions |
 | :--- | :--- | :--- | :--- |
-| 🪟 **Windows Desktop** | [![Download Windows EXE](https://img.shields.io/badge/Download-PVP--Player.exe-FF8800?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.exe) <br> *(or [Download as .ZIP](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player-Windows.zip))* | Standalone `.exe` (36.8 MB) | **Double-click `PVP-Player.exe` to run.** <br> Starts local player and opens in default browser with system tray icon. Zero setup required. |
-| 📱 **Android Mobile** | [![Download Android APK](https://img.shields.io/badge/Download-PVP--Player.apk-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.apk) <br> *(or [Source Project .ZIP](https://github.com/pkgtm2419/online-VLC/raw/main/releases/pvp-android-mobile.zip))* | Installable `.apk` (6.18 MB) | **Direct install on Android phone or tablet.** <br> Tap to install. Supports Share-to-Play, automatic clipboard detection, and full VLC touch controls. |
+| 🪟 **Windows Desktop** | [![Download Windows EXE](https://img.shields.io/badge/Download-PVP--Player.exe-FF8800?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.exe) <br> *(or [Download as .ZIP](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player-Windows.zip))* | Standalone `.exe` (93.4 MB) | **Double-click `PVP-Player.exe` to run.** <br> Pure native VideoLAN LibVLC player with hardware acceleration, PyQt6 UI, and zero web servers. |
+| 📱 **Android Mobile** | [![Download Android APK](https://img.shields.io/badge/Download-PVP--Player.apk-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.apk) <br> *(or [Source Project .ZIP](https://github.com/pkgtm2419/online-VLC/raw/main/releases/pvp-android-mobile.zip))* | Installable `.apk` (49.7 MB) | **Direct install on Android phone or tablet.** <br> Powered by official VideoLAN `libvlc-all:3.6.2` with `VLCVideoLayout`, swipe gestures (volume, brightness, seek), and zero ads. |
 
 ---
 
@@ -27,33 +27,29 @@ This repository contains **two isolated project directories** with zero coupling
 ```
 online-VLC/
 ├── releases/                       # Compiled, production-ready release downloads
-│   ├── PVP-Player.exe              # Standalone Windows executable (36.8 MB)
-│   ├── PVP-Player-Windows.zip      # Windows package archive (36.5 MB)
-│   ├── PVP-Player.apk              # Installable Android Mobile APK (6.18 MB)
-│   └── pvp-android-mobile.zip      # Android project source archive
+│   ├── PVP-Player.exe              # Standalone Windows LibVLC executable (93.4 MB)
+│   ├── PVP-Player-Windows.zip      # Windows package archive (93.0 MB)
+│   ├── PVP-Player.apk              # Installable Android LibVLC APK (49.7 MB)
+│   └── pvp-android-mobile.zip      # Android project source archive (1.3 MB)
 │
 ├── windows-app/                    # Standalone Windows Desktop App Project
-│   ├── app/                        # Bundled backend and VLC web player frontend
-│   │   ├── main.py                 # FastAPI local backend & playlist engine
-│   │   ├── extractor.py            # Universal stream extraction engine
-│   │   ├── streamer.py             # Local streaming proxy
-│   │   └── static/                 # VLC frontend (index.html, app.js, style.css, hls.min.js)
-│   ├── pvp_desktop.py              # System tray launcher (pystray + uvicorn)
+│   ├── libvlc/                     # Bundled VideoLAN LibVLC x64 DLLs & streaming plugins
+│   ├── pvp_player.py               # Native PyQt6 + VideoLAN LibVLC desktop application
 │   ├── build.py                    # PyInstaller standalone binary builder
 │   ├── pvp.spec                    # PyInstaller build specification
-│   ├── requirements.txt            # Standalone Python dependencies
-│   ├── run.bat                     # Instant one-click launcher
-│   └── README.md                   # Windows project guide
+│   ├── requirements.txt            # Python dependencies (PyQt6, python-vlc, yt-dlp)
+│   └── tests/                      # Unit tests for LibVLC and stream extraction
 │
-└── android-app/                    # Standalone Android Mobile Project
+└── android-app/                    # Standalone Android Mobile Project (VLC-Android)
     ├── app/                        # Android application module
-    │   ├── src/main/java/          # Kotlin native bridge & Share Intent handler
-    │   ├── src/main/assets/www/    # Touch-optimized mobile VLC UI & player
-    │   └── src/main/res/           # Native Android resources, drawables & icons
-    ├── build.gradle.kts            # Project build configuration
-    ├── settings.gradle.kts         # Gradle settings
-    ├── gradle.properties           # Build properties
-    └── README.md                   # Android build & setup guide
+    │   ├── src/main/java/          # Native Kotlin VideoLAN LibVLC player & UI
+    │   │   ├── extractor/          # Privacy-first ad-blocking stream resolver
+    │   │   ├── player/             # VLCPlayerActivity (VLCVideoLayout, gestures)
+    │   │   └── ui/                 # HomeActivity (clipboard, paste & play, history)
+    │   ├── src/main/res/           # Native Android resources, layouts & vector drawables
+    │   └── src/test/java/          # Kotlin unit tests (ad blocking & URL parsing)
+    ├── build.gradle.kts            # Configured with org.videolan.android:libvlc-all:3.6.2
+    └── settings.gradle.kts         # Gradle settings
 ```
 
 ---
@@ -63,8 +59,8 @@ online-VLC/
 ### 🪟 1. Windows Desktop App (`windows-app/`)
 
 - **Direct Download**: **[PVP-Player.exe](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player.exe)** (or [PVP-Player-Windows.zip](https://github.com/pkgtm2419/online-VLC/raw/main/releases/PVP-Player-Windows.zip)).
-- **Quick Run**: Double-click `PVP-Player.exe`. The app starts a local server on your computer, places an orange VLC cone icon in your system tray, and opens your default browser at `http://127.0.0.1:8000`.
-- **System Tray Options**: Right-click the system tray icon to **Open Browser**, **Restart Server**, or **Quit**.
+- **Quick Run**: Double-click `PVP-Player.exe`. The app launches immediately as a native desktop application powered directly by VideoLAN's LibVLC C engine. No web browser, no local port bindings, and no external dependencies required.
+- **Built-in Features**: Hardware-accelerated decoding, aspect ratio switching, multi-track audio and subtitle selection, speed cycling (0.25x-2.0x), playlist manager with SQLite persistence, and zero ads.
 - **Build from Source**:
   ```powershell
   cd windows-app
