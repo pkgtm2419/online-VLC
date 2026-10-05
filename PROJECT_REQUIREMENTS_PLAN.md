@@ -23,28 +23,6 @@
 ### 2.1 Repository Layout
 The repository is split into isolated, uncoupled platform projects with a centralized releases directory:
 
-```
-online-VLC/
-├── releases/                       # Synchronized, pre-compiled production binaries
-│   ├── PVP-Player.exe              # Standalone Windows native executable (< 100 MB)
-│   ├── PVP-Player-Windows.zip      # Windows portable package archive (< 100 MB)
-│   ├── PVP-Player.apk              # Installable Android ARM64 APK (< 100 MB)
-│   └── pvp-android-mobile.zip      # Android mobile source archive (< 100 MB)
-│
-├── windows-app/                    # Standalone Windows Desktop Project (videolan/vlc)
-│   ├── libvlc/                     # Bundled VideoLAN LibVLC x64 binaries & plugins
-│   ├── pvp_player.py               # Native desktop player UI & controller
-│   ├── app/                        # Stream extraction engine & database schemas
-│   ├── tests/                      # Automated test suite for Windows
-│   └── pvp.spec                    # PyInstaller build specification
-│
-└── android-app/                    # Standalone Android Project (videolan/vlc-android)
-    ├── app/                        # Android application module
-    │   ├── src/main/java/          # Native Kotlin LibVLC implementation & UI
-    │   ├── src/main/res/           # Layouts, vector drawables & themes
-    │   └── src/test/java/          # Automated test suite for Android
-    └── build.gradle.kts            # Project build configuration with LibVLC runtime
-```
 
 ### 2.2 Component Isolation & Independence
 - The Windows Desktop application and Android Mobile application must operate as completely independent projects with zero shared build artifacts or cross-platform dependencies.
